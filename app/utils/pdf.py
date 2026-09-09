@@ -192,7 +192,7 @@ def _recuadro_manual(remision):
 
 def _firmas(remision):
     tecnico = ""
-    entrega = remision.entrega
+    entrega = remision.nota.entrega
     if entrega and entrega.tecnico:
         tecnico = entrega.tecnico.nombre
 
@@ -254,4 +254,185 @@ def generar_pdf_remision(remision, ruta):
     ]
 
     documento.build(historia, onFirstPage=_pie, onLaterPages=_pie)
+    return ruta
+
+
+# --- Carta responsiva de custodia ------------------------------------------
+
+# Texto tomado del sistema anterior (_diseno_anterior/responsiva_pdf.html). Se
+# guarda copiado en cada responsiva emitida, no leido de aqui: si manana
+# cambian los terminos, lo ya firmado debe conservar los suyos.
+TERMINOS_RESPONSIVA = (
+    "1. El receptor en este acto recibe a su entera satisfaccion el equipo "
+    "medico arriba descrito en optimas condiciones operativas, de limpieza y "
+    "con los accesorios completos senalados.<br/>"
+    "2. El receptor asume la responsabilidad civil, custodia y cuidado del "
+    "equipo desde el momento de su entrega y hasta su devolucion formal en el "
+    "almacen de AVANT.<br/>"
+    "3. En caso de dano, golpe, mal manejo, perdida de accesorios o "
+    "destruccion total o parcial del activo, el receptor cubrira el costo "
+    "total de reparacion o el valor de reposicion del equipo "
+    "(${valor} MXN).<br/>"
+    "4. Queda estrictamente prohibida la intervencion, apertura del chasis o "
+    "modificacion tecnica de los componentes por personal no autorizado por "
+    "AVANT."
+)
+
+
+def _tabla_datos(titulo, filas, color_titulo, anchos):
+    datos = [[Paragraph(f'<font color="white"><b>{titulo}</b></font>', _normal)]
+             + [""] * (len(anchos) - 1)]
+    datos.extend(filas)
+
+    tabla = Table(datos, colWidths=anchos)
+    tabla.setStyle(TableStyle([
+        ("SPAN", (0, 0), (-1, 0)),
+        ("BACKGROUND", (0, 0), (-1, 0), color_titulo),
+        ("ALIGN", (0, 0), (-1, 0), "CENTER"),
+        ("GRID", (0, 0), (-1, -1), 0.5, NEGRO),
+        ("FONTSIZE", (0, 0), (-1, -1), 8),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+    ]))
+    return tabla
+
+
+def generar_pdf_responsiva(responsiva, ruta):
+    """Escribe la carta responsiva de custodia en `ruta`."""
+    equipo = responsiva.equipo
+    entrega = responsiva.entrega
+    nota = entrega.nota if entrega else None
+    valor = f"{float(responsiva.valor_reposicion or 0):,.2f}"
+
+    documento = SimpleDocTemplate(
+        str(ruta), pagesize=letter,
+        leftMargin=15 * mm, rightMargin=15 * mm,
+        topMargin=12 * mm, bottomMargin=15 * mm,
+        title=f"Responsiva {responsiva.folio}",
+        author=responsiva.razon_social or "AVANT",
+    )
+
+    encabezado = [
+        Paragraph('<font size="15" color="#0d6efd"><b>INVENTARIOS AVANT</b></font>',
+                  _centrado),
+        Paragraph("<b>CARTA RESPONSIVA DE CUSTODIA Y CONTRATO DE RENTA DE "
+                  "EQUIPO MEDICO</b>", _centrado),
+        Paragraph(f'<font size="7">Documento oficial de control de activos '
+                  f"fijos | Folio: <b>{responsiva.folio}</b></font>", _centrado),
+        Spacer(1, 8),
+    ]
+
+    emision = responsiva.fecha_emision.strftime("%d/%m/%Y %H:%M")
+    datos_emision = Paragraph(
+        f"<b>Fecha y hora de emision:</b> {emision}<br/>"
+        f"<b>Empresa propietaria:</b> {responsiva.razon_social}<br/>"
+        f"<b>Operador que entrega:</b> "
+        f"{responsiva.emitida_por.nombre if responsiva.emitida_por else ''}"
+        + (f"<br/><b>Nota de venta:</b> {nota.folio}" if nota else ""),
+        _normal,
+    )
+
+    tabla_activo = _tabla_datos(
+        "DATOS TECNICOS DEL ACTIVO FIJO",
+        [
+            [Paragraph("<b>Codigo / ID:</b>", _normal),
+             Paragraph(f'<font color="#0d6efd"><b>{equipo.codigo_barras}</b></font>',
+                       _normal),
+             Paragraph("<b>Tipo de equipo:</b>", _normal),
+             Paragraph(equipo.tipo_equipo or "-", _normal)],
+            [Paragraph("<b>Marca:</b>", _normal),
+             Paragraph(equipo.marca or "-", _normal),
+             Paragraph("<b>Modelo:</b>", _normal),
+             Paragraph(equipo.modelo or "-", _normal)],
+            [Paragraph("<b>Numero de serie:</b>", _normal),
+             Paragraph(equipo.numero_serie or "-", _normal),
+             Paragraph("<b>Valor de reposicion:</b>", _normal),
+             Paragraph(f'<font color="#198754"><b>$ {valor} MXN</b></font>',
+                       _normal)],
+        ],
+        colors.HexColor("#0d6efd"),
+        [42 * mm, 43 * mm, 42 * mm, 53 * mm],
+    )
+
+    tabla_receptor = _tabla_datos(
+        "DATOS DEL RECEPTOR / CLIENTE",
+        [
+            [Paragraph("<b>Medico / responsable de custodia:</b><br/>"
+                       f"{responsiva.responsable_custodia or '_' * 30}", _normal),
+             Paragraph("<b>Paciente / folio de atencion:</b><br/>"
+                       f"{responsiva.paciente_folio or '_' * 30}", _normal)],
+            [Paragraph(f"<b>Hospital:</b> {nota.hospital if nota else '-'}",
+                       _normal),
+             Paragraph("<b>Notas de entrega:</b> "
+                       f"{responsiva.notas or '-'}", _normal)],
+        ],
+        colors.HexColor("#333333"),
+        [90 * mm, 90 * mm],
+    )
+
+    def recuadro(titulo, contenido, color):
+        tabla = Table(
+            [[Paragraph(f'<font color="{color}"><b>{titulo}</b></font><br/>'
+                        f"{contenido or '-'}", _normal)]],
+            colWidths=[180 * mm],
+        )
+        tabla.setStyle(TableStyle([
+            ("BOX", (0, 0), (-1, -1), 0.5, NEGRO),
+            ("TOPPADDING", (0, 0), (-1, -1), 5),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+            ("LEFTPADDING", (0, 0), (-1, -1), 6),
+        ]))
+        return tabla
+
+    terminos = Table(
+        [[Paragraph("<b>TERMINOS Y CONDICIONES DE CUSTODIA Y RENTA:</b><br/>"
+                    + TERMINOS_RESPONSIVA.format(valor=valor), _chico)]],
+        colWidths=[180 * mm],
+    )
+    terminos.setStyle(TableStyle([
+        ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#999999")),
+        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f9f9f9")),
+        ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ("LEFTPADDING", (0, 0), (-1, -1), 6),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+    ]))
+
+    firmas = Table(
+        [["ENTREGA (AVANT)", "RECIBE CONFORME"],
+         [Paragraph(f'<font size="7">'
+                    f"{responsiva.emitida_por.nombre if responsiva.emitida_por else ''}"
+                    "</font>", _centrado_chico),
+          Paragraph('<font size="7">Firma y nombre de custodia</font>',
+                    _centrado_chico)]],
+        colWidths=[85 * mm, 85 * mm],
+    )
+    firmas.setStyle(TableStyle([
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, -1), 8),
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("LINEABOVE", (0, 0), (-1, 0), 0.6, NEGRO),
+        ("TOPPADDING", (0, 0), (-1, 0), 4),
+    ]))
+
+    historia = encabezado + [
+        datos_emision,
+        Spacer(1, 8),
+        tabla_activo,
+        Spacer(1, 8),
+        tabla_receptor,
+        Spacer(1, 8),
+        recuadro("Accesorios e insumos entregados:", responsiva.accesorios,
+                 "#0d6efd"),
+        Spacer(1, 6),
+        recuadro("Inspeccion fisica y funcional de salida:",
+                 responsiva.checklist_salida, "#198754"),
+        Spacer(1, 8),
+        terminos,
+        Spacer(1, 36),
+        KeepTogether(firmas),
+    ]
+
+    documento.build(historia)
     return ruta

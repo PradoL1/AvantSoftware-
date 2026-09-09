@@ -99,23 +99,30 @@ propio, razón social y RFC congelados al emitir, totales con IVA, el recuadro
 punteado que se llena a mano en el hospital y las tres firmas. Se guardan en
 `app/static/pdf/remisiones/` y se regeneran solas si el archivo falta.
 
+**Logística**: el técnico toma la entrega, hace la doble verificación escaneando
+cada artículo (una vez en almacén y otra en el hospital), marca la entrega —que
+descuenta los insumos del almacén y pasa el equipo a rentado— y registra el
+regreso de cada pieza. La nota se cierra sola cuando vuelve todo el equipo. Se
+emite una **carta responsiva** por pieza entregada.
+
 ```powershell
 python tests\pantallas.py   # renderiza cada pantalla con cada rol
 python tests\reglas.py      # reglas de negocio y cálculos
 python tests\notas.py       # alta y edición de notas, extremo a extremo
 python tests\revision.py    # aprobación, rechazo, apartado y kardex
 python tests\remisiones.py  # emisión, datos fiscales y PDF
+python tests\logistica.py   # checklist, entrega, responsiva y regreso
 ```
+
+**El flujo completo del contexto §2 ya corre de punta a punta**, de
+`pendiente_revision` a `cerrada`.
 
 **Falta (marcado con `TODO` en el código):**
 
-1. Checklist de doble verificación, entrega y regreso de equipo.
-2. Carta responsiva de custodia (modelo listo, falta el documento).
-3. Kardex de la salida física, la entrega y el cierre (el del apartado y la
-   liberación ya se escribe).
-4. ABC de usuarios y catálogos (el formulario `UsuarioForm` ya está hecho).
-5. Impresión de etiquetas con JsBarcode (medidas ya conocidas, ver abajo).
-6. Reportes, trazabilidad y planificación de demanda.
+1. ABC de usuarios y catálogos (el formulario `UsuarioForm` ya está hecho).
+2. Impresión de etiquetas con JsBarcode (medidas ya conocidas, ver abajo).
+3. Reportes, trazabilidad y planificación de demanda.
+4. Pantalla del kardex (los movimientos ya se escriben, falta consultarlos).
 
 ## Pendientes técnicos
 
@@ -123,10 +130,11 @@ python tests\remisiones.py  # emisión, datos fiscales y PDF
   `servicios/notas.py` reintenta hasta 5 veces cuando el `UNIQUE` choca, que es
   suficiente para 11 usuarios. Con mucha más concurrencia habría que pasar a una
   secuencia de PostgreSQL.
-- **Capa de servicios:** `servicios/notas.py` (alta y edición),
-  `servicios/inventario.py` (apartar, liberar y kardex) y `servicios/revision.py`
-  (aprobar, rechazar, cancelar). Las transiciones que faltan — salida física,
-  entrega y cierre — van ahí también, una transacción por operación.
+- **Capa de servicios:** todas las transiciones viven en `app/servicios/` —
+  `notas.py` (alta y edición), `inventario.py` (apartar, liberar y kardex),
+  `revision.py` (aprobar, rechazar, cancelar), `remisiones.py`, `logistica.py`
+  (checklist, entrega, regreso) y `responsivas.py`. Una transacción por
+  operación; las vistas solo traducen errores a mensajes.
 - **Apartado sin bloqueo de fila:** dos revisores aprobando a la vez podrían
   comprometer el mismo stock. `aprobar()` revalida y revierte completo, pero no
   toma un lock. Con 3 revisores es tolerable; en PostgreSQL se resuelve con
@@ -240,3 +248,34 @@ cuentas por pagar a proveedores y exportación a Excel.
 - Checklist guardado en `localStorage` del navegador del técnico.
 - Catálogo de equipos leído desde Google Sheets.
 - Borrado de movimientos del kardex.
+
+## Momento en que se mueve el inventario
+
+Es la parte más fácil de malinterpretar, así que queda escrita:
+
+| Paso | Existencia física | Apartado | Equipo |
+|---|---|---|---|
+| Aprobar | sin cambio | **sube** | → apartado |
+| Checklist de almacén | sin cambio | sin cambio | ubicación "En ruta" |
+| Marcar entregada | **baja** | vuelve a cero | → rentado |
+| Regreso | sin cambio | — | → disponible o mantenimiento |
+| Cancelar | sin cambio | vuelve a cero | → disponible |
+
+El descuento real ocurre **al marcar la entrega**, no al salir del almacén,
+siguiendo el flujo acordado ("al cerrar, los insumos se descuentan
+definitivamente"). Mientras el técnico va en camino las piezas siguen contando
+como apartadas, así que nadie más puede comprometerlas. Si se prefiere que la
+existencia baje al salir del almacén, el cambio está localizado en
+`servicios/logistica.py`.
+
+## Notas de operación
+
+- **La base local vive en `instance/avant.db`**, no en la raíz. Flask-SQLAlchemy
+  resuelve las rutas SQLite relativas contra la carpeta `instance/`.
+- **Convención de nombres de constraints** en `extensions.py`: sin ella
+  SQLAlchemy deja restricciones sin nombre y SQLite no puede alterarlas en una
+  migración posterior ("Constraint must have a name"). Con nombres
+  deterministas, las migraciones funcionan igual en SQLite y en PostgreSQL.
+- Los PDF (remisiones y responsivas) se guardan en
+  `app/static/pdf/remisiones/` y están fuera de Git. Si falta un archivo, se
+  regenera al pedirlo.

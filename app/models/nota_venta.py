@@ -61,6 +61,11 @@ class NotaVenta(db.Model):
         lazy="selectin",
     )
 
+    entrega = db.relationship(
+        "Entrega", back_populates="nota", uselist=False,
+        cascade="all, delete-orphan",
+    )
+
     def remision_de(self, tipo):
         """La remision de insumos o la de equipos, si ya se genero."""
         for r in self.remisiones:

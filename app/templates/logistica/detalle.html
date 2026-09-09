@@ -1,48 +1,225 @@
 {% extends "base.html" %}
-{% from "_macros.html" import datos_nota, renglones_nota %}
+{% from "_macros.html" import renglones_nota %}
 {% block title %}Entrega {{ nota.folio }} &middot; AVANT{% endblock %}
 
+{% macro dato(etiqueta, valor) %}
+  {% if valor %}
+    <dt class="col-sm-5">{{ etiqueta }}</dt>
+    <dd class="col-sm-7">{{ valor }}</dd>
+  {% endif %}
+{% endmacro %}
+
+{% macro paso(numero, titulo, listo, activo) %}
+  <div class="d-flex align-items-center gap-2 {{ 'opacity-50' if not listo and not activo }}">
+    <span class="badge rounded-pill text-bg-{{ 'success' if listo else ('primary' if activo else 'secondary') }}">
+      {% if listo %}<i class="fas fa-check"></i>{% else %}{{ numero }}{% endif %}
+    </span>
+    <span class="{{ 'fw-semibold' if activo }}">{{ titulo }}</span>
+  </div>
+{% endmacro %}
+
 {% block contenido %}
-<h1 class="h3 mb-3">Entrega de la nota {{ nota.folio }}</h1>
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <div class="text-uppercase small text-muted fw-semibold">Logistica</div>
+    <h2 class="mb-0">
+      {{ nota.folio }}
+      <span class="badge text-bg-{{ nota.estado_color }} align-middle ms-2">
+        {{ nota.estado_etiqueta }}
+      </span>
+    </h2>
+  </div>
+  <a class="btn btn-outline-secondary" href="{{ url_for('logistica.bandeja') }}">Volver</a>
+</div>
 
-<div class="row g-3">
-  <div class="col-md-5">
-    <div class="card h-100">
-      <div class="card-header">Datos de entrega</div>
-      <div class="card-body">{{ datos_nota(nota) }}</div>
+{# --- Avance --- #}
+<div class="card p-4 mb-3">
+  <div class="d-flex flex-wrap gap-4">
+    {{ paso(1, "Entrega asignada", entrega is not none, entrega is none) }}
+    {{ paso(2, "Verificado en almacen",
+            entrega and entrega.checklist_almacen_ok,
+            entrega and not entrega.checklist_almacen_ok) }}
+    {{ paso(3, "Verificado en hospital",
+            entrega and entrega.checklist_hospital_ok,
+            entrega and entrega.checklist_almacen_ok and not entrega.checklist_hospital_ok) }}
+    {{ paso(4, "Entregado", entrega and entrega.fecha_entrega,
+            entrega and entrega.checklist_ok and not entrega.fecha_entrega) }}
+    {% if nota.detalles_equipo %}
+      {{ paso(5, "Equipo de regreso", nota.estado == EstadoNota.CERRADA,
+              entrega and entrega.fecha_entrega and pendientes_regreso) }}
+    {% endif %}
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-lg-5">
+    <div class="card p-4 h-100">
+      <h5 class="mb-3 border-bottom pb-2">
+        <i class="fas fa-hospital text-primary me-2"></i> Entrega
+      </h5>
+      <dl class="row mb-0 small">
+        {{ dato("Hospital", nota.hospital) }}
+        {{ dato("Direccion", nota.direccion_entrega) }}
+        {{ dato("Contacto", nota.contacto_nombre) }}
+        {{ dato("Telefono", nota.contacto_telefono) }}
+        {{ dato("Requerida", nota.fecha_requerida.strftime('%d/%m/%Y')) }}
+        {{ dato("Cirugia", nota.cirugia) }}
+        {{ dato("Doctor(a)", nota.doctor) }}
+        {% if entrega %}
+          {{ dato("Tecnico", entrega.tecnico.nombre) }}
+          {{ dato("Entregado", entrega.fecha_entrega.strftime('%d/%m/%Y %H:%M') if entrega.fecha_entrega) }}
+          {{ dato("Recibio", entrega.recibe_nombre) }}
+        {% endif %}
+      </dl>
+      {% if nota.observaciones %}
+        <div class="alert alert-info small mt-3 mb-0">
+          <strong>Indicaciones:</strong> {{ nota.observaciones }}
+        </div>
+      {% endif %}
     </div>
   </div>
-  <div class="col-md-7">
-    <div class="card h-100">
-      <div class="card-header">Articulos a entregar</div>
-      <div class="card-body">{{ renglones_nota(nota) }}</div>
+
+  <div class="col-lg-7">
+    <div class="card p-4 h-100">
+      <h5 class="mb-3 border-bottom pb-2">
+        <i class="fas fa-boxes-stacked text-primary me-2"></i> Articulos
+      </h5>
+      {{ renglones_nota(nota) }}
     </div>
   </div>
 </div>
 
-{% if current_user.es_tecnico %}
-<div class="card mt-3">
-  <div class="card-header">Doble verificacion</div>
-  <div class="card-body d-flex flex-wrap gap-2">
-    <a class="btn btn-outline-primary"
-       href="{{ url_for('logistica.checklist', nota_id=nota.id, etapa='almacen') }}">
-      Checklist en almacen
-    </a>
-    <a class="btn btn-outline-primary"
-       href="{{ url_for('logistica.checklist', nota_id=nota.id, etapa='hospital') }}">
-      Checklist en hospital
-    </a>
-    <form method="post" action="{{ url_for('logistica.entregar', nota_id=nota.id) }}">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button class="btn btn-success" type="submit">Marcar entregada</button>
-    </form>
-    <form method="post" action="{{ url_for('logistica.regreso_equipo', nota_id=nota.id) }}">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button class="btn btn-outline-secondary" type="submit">Registrar regreso de equipo</button>
-    </form>
+{# --- Documentos --- #}
+{% if nota.remisiones or (entrega and entrega.responsivas) %}
+  <div class="card p-4 mb-3">
+    <h5 class="mb-3 border-bottom pb-2">
+      <i class="fas fa-file-pdf text-primary me-2"></i> Documentos
+    </h5>
+    <div class="d-flex flex-wrap gap-2">
+      {% for r in nota.remisiones if not r.cancelada %}
+        <a class="btn btn-sm btn-outline-primary" target="_blank"
+           href="{{ url_for('revision.descargar_remision', remision_id=r.id) }}">
+          Remision {{ TipoRemision.ETIQUETAS[r.tipo] }} &middot; {{ r.folio }}
+        </a>
+      {% endfor %}
+      {% if entrega %}
+        {% for resp in entrega.responsivas %}
+          <a class="btn btn-sm btn-outline-secondary" target="_blank"
+             href="{{ url_for('logistica.descargar_responsiva', responsiva_id=resp.id) }}">
+            Responsiva {{ resp.folio }}
+            {%- if resp.cerrada %} (devuelta){% endif %}
+          </a>
+        {% endfor %}
+      {% endif %}
+    </div>
   </div>
-</div>
 {% endif %}
 
-<p class="mt-3"><a href="{{ url_for('logistica.bandeja') }}">&larr; Volver</a></p>
+{# --- Acciones del tecnico --- #}
+{% if current_user.es_tecnico %}
+  {% if not entrega %}
+    <div class="card p-4 mb-5">
+      <h5 class="mb-3 border-bottom pb-2">Tomar esta entrega</h5>
+      <p class="text-muted small">
+        Al tomarla se prepara tu checklist de doble verificacion.
+      </p>
+      <form method="post" action="{{ url_for('logistica.tomar', nota_id=nota.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-primary" type="submit">
+          <i class="fas fa-hand me-1"></i> Tomar entrega
+        </button>
+      </form>
+    </div>
+
+  {% elif not entrega.fecha_entrega %}
+    <div class="card p-4 mb-5">
+      <h5 class="mb-3 border-bottom pb-2">Doble verificacion</h5>
+      <div class="d-flex flex-wrap gap-2 mb-3">
+        <a class="btn btn-outline-primary"
+           href="{{ url_for('logistica.checklist', nota_id=nota.id, etapa='almacen') }}">
+          {% if entrega.checklist_almacen_ok %}<i class="fas fa-check me-1"></i>{% endif %}
+          Checklist en almacen
+        </a>
+        <a class="btn btn-outline-primary {{ '' if entrega.checklist_almacen_ok else 'disabled' }}"
+           href="{{ url_for('logistica.checklist', nota_id=nota.id, etapa='hospital') }}">
+          {% if entrega.checklist_hospital_ok %}<i class="fas fa-check me-1"></i>{% endif %}
+          Checklist en hospital
+        </a>
+      </div>
+
+      {% if entrega.checklist_ok %}
+        <form method="post" action="{{ url_for('logistica.entregar', nota_id=nota.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="row g-2 mb-2">
+            <div class="col-md-4">
+              <label class="form-label small fw-semibold" for="recibe_nombre">Quien recibe</label>
+              <input type="text" class="form-control" id="recibe_nombre"
+                     name="recibe_nombre" placeholder="Nombre de quien firma">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small fw-semibold" for="paciente_folio">Paciente / folio</label>
+              <input type="text" class="form-control" id="paciente_folio"
+                     name="paciente_folio" placeholder="Para la responsiva">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small fw-semibold" for="observaciones">Observaciones</label>
+              <input type="text" class="form-control" id="observaciones" name="observaciones">
+            </div>
+          </div>
+          <p class="text-muted small">
+            Al marcar la entrega, los insumos se descuentan del almacen y el
+            equipo pasa a rentado. No se puede deshacer.
+          </p>
+          <button class="btn btn-success" type="submit">
+            <i class="fas fa-check me-1"></i> Marcar entregada
+          </button>
+        </form>
+      {% else %}
+        <p class="text-muted mb-0 small">
+          Completa las dos verificaciones para poder marcar la entrega.
+        </p>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  {% if pendientes_regreso %}
+    <div class="card p-4 mb-5">
+      <h5 class="mb-3 border-bottom pb-2">
+        <i class="fas fa-rotate-left text-primary me-2"></i> Regreso de equipo
+      </h5>
+      <p class="text-muted small">
+        Sigue en el hospital:
+        {% for e in pendientes_regreso %}
+          <span class="badge text-bg-primary">{{ e.descripcion }} ({{ e.codigo_barras }})</span>
+        {% endfor %}
+      </p>
+      <form method="post" action="{{ url_for('logistica.regreso_equipo', nota_id=nota.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="row g-2">
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold" for="codigo">
+              <i class="fas fa-barcode me-1"></i> Escanea el equipo que regresa
+            </label>
+            <input type="text" class="form-control" id="codigo" name="codigo" required
+                   autocomplete="off" placeholder="Codigo de barras">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label small fw-semibold" for="estado">Estatus al recibir</label>
+            <select class="form-select" id="estado" name="estado">
+              <option value="{{ EstadoEquipo.DISPONIBLE }}">Disponible</option>
+              <option value="{{ EstadoEquipo.MANTENIMIENTO }}">Requiere mantenimiento</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label small fw-semibold" for="obs_regreso">Danos o faltantes</label>
+            <input type="text" class="form-control" id="obs_regreso" name="observaciones">
+          </div>
+          <div class="col-md-2 d-flex align-items-end">
+            <button class="btn btn-primary w-100" type="submit">Registrar</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  {% endif %}
+{% endif %}
 {% endblock %}

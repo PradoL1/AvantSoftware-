@@ -1,8 +1,8 @@
-"""esquema inicial: catalogo, almacenes, notas, remisiones, responsivas y kardex
+"""esquema inicial
 
-Revision ID: 53d327867e72
+Revision ID: 9b7041f3193d
 Revises: 
-Create Date: 2026-09-09 11:20:35.160682
+Create Date: 2026-09-09 12:05:38.404706
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '53d327867e72'
+revision = '9b7041f3193d'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -23,8 +23,8 @@ def upgrade():
     sa.Column('nombre', sa.String(length=80), nullable=False),
     sa.Column('descripcion', sa.String(length=200), nullable=True),
     sa.Column('activo', sa.Boolean(), nullable=False),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('nombre')
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_almacenes')),
+    sa.UniqueConstraint('nombre', name=op.f('uq_almacenes_nombre'))
     )
     op.create_table('insumos',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -39,7 +39,7 @@ def upgrade():
     sa.Column('proveedor', sa.String(length=160), nullable=True),
     sa.Column('activo', sa.Boolean(), nullable=False),
     sa.Column('fecha_alta', sa.DateTime(timezone=True), nullable=False),
-    sa.PrimaryKeyConstraint('id')
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_insumos'))
     )
     with op.batch_alter_table('insumos', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_insumos_codigo_barras'), ['codigo_barras'], unique=True)
@@ -53,7 +53,7 @@ def upgrade():
     sa.Column('rol', sa.String(length=20), nullable=False),
     sa.Column('activo', sa.Boolean(), nullable=False),
     sa.Column('fecha_creacion', sa.DateTime(timezone=True), nullable=False),
-    sa.PrimaryKeyConstraint('id')
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_usuarios'))
     )
     with op.batch_alter_table('usuarios', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_usuarios_email'), ['email'], unique=True)
@@ -74,9 +74,9 @@ def upgrade():
     sa.Column('observaciones', sa.Text(), nullable=True),
     sa.Column('activo', sa.Boolean(), nullable=False),
     sa.Column('fecha_alta', sa.DateTime(timezone=True), nullable=False),
-    sa.ForeignKeyConstraint(['almacen_id'], ['almacenes.id'], ),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('numero_serie')
+    sa.ForeignKeyConstraint(['almacen_id'], ['almacenes.id'], name=op.f('fk_equipo_medico_almacen_id_almacenes')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_equipo_medico')),
+    sa.UniqueConstraint('numero_serie', name=op.f('uq_equipo_medico_numero_serie'))
     )
     with op.batch_alter_table('equipo_medico', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_equipo_medico_codigo_barras'), ['codigo_barras'], unique=True)
@@ -87,9 +87,9 @@ def upgrade():
     sa.Column('almacen_id', sa.Integer(), nullable=False),
     sa.Column('cantidad', sa.Integer(), nullable=False),
     sa.Column('apartado', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['almacen_id'], ['almacenes.id'], ),
-    sa.ForeignKeyConstraint(['insumo_id'], ['insumos.id'], ),
-    sa.PrimaryKeyConstraint('id'),
+    sa.ForeignKeyConstraint(['almacen_id'], ['almacenes.id'], name=op.f('fk_existencias_almacen_id_almacenes')),
+    sa.ForeignKeyConstraint(['insumo_id'], ['insumos.id'], name=op.f('fk_existencias_insumo_id_insumos')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_existencias')),
     sa.UniqueConstraint('insumo_id', 'almacen_id', name='uq_existencia_insumo_almacen')
     )
     with op.batch_alter_table('existencias', schema=None) as batch_op:
@@ -119,9 +119,9 @@ def upgrade():
     sa.Column('revisado_por_id', sa.Integer(), nullable=True),
     sa.Column('fecha_revision', sa.DateTime(timezone=True), nullable=True),
     sa.Column('motivo_rechazo', sa.Text(), nullable=True),
-    sa.ForeignKeyConstraint(['revisado_por_id'], ['usuarios.id'], ),
-    sa.ForeignKeyConstraint(['vendedor_id'], ['usuarios.id'], ),
-    sa.PrimaryKeyConstraint('id')
+    sa.ForeignKeyConstraint(['revisado_por_id'], ['usuarios.id'], name=op.f('fk_notas_venta_revisado_por_id_usuarios')),
+    sa.ForeignKeyConstraint(['vendedor_id'], ['usuarios.id'], name=op.f('fk_notas_venta_vendedor_id_usuarios')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_notas_venta'))
     )
     with op.batch_alter_table('notas_venta', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_notas_venta_estado'), ['estado'], unique=False)
@@ -137,12 +137,30 @@ def upgrade():
     sa.Column('descripcion_snapshot', sa.String(length=200), nullable=True),
     sa.Column('unidad_snapshot', sa.String(length=30), nullable=True),
     sa.Column('precio_unitario', sa.Numeric(precision=12, scale=2), nullable=False),
-    sa.ForeignKeyConstraint(['nota_venta_id'], ['notas_venta.id'], ),
-    sa.PrimaryKeyConstraint('id')
+    sa.ForeignKeyConstraint(['nota_venta_id'], ['notas_venta.id'], name=op.f('fk_detalle_nota_venta_nota_venta_id_notas_venta')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_detalle_nota_venta'))
     )
     with op.batch_alter_table('detalle_nota_venta', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_detalle_nota_venta_nota_venta_id'), ['nota_venta_id'], unique=False)
 
+    op.create_table('entregas',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('nota_venta_id', sa.Integer(), nullable=False),
+    sa.Column('tecnico_id', sa.Integer(), nullable=False),
+    sa.Column('checklist_almacen_ok', sa.Boolean(), nullable=False),
+    sa.Column('fecha_checklist_almacen', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('checklist_hospital_ok', sa.Boolean(), nullable=False),
+    sa.Column('fecha_checklist_hospital', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('fecha_asignacion', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('fecha_entrega', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('recibe_nombre', sa.String(length=120), nullable=True),
+    sa.Column('observaciones', sa.Text(), nullable=True),
+    sa.Column('fecha_regreso_equipo', sa.DateTime(timezone=True), nullable=True),
+    sa.ForeignKeyConstraint(['nota_venta_id'], ['notas_venta.id'], name=op.f('fk_entregas_nota_venta_id_notas_venta')),
+    sa.ForeignKeyConstraint(['tecnico_id'], ['usuarios.id'], name=op.f('fk_entregas_tecnico_id_usuarios')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_entregas')),
+    sa.UniqueConstraint('nota_venta_id', name=op.f('uq_entregas_nota_venta_id'))
+    )
     op.create_table('historial_movimientos',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('item_tipo', sa.String(length=10), nullable=False),
@@ -161,11 +179,11 @@ def upgrade():
     sa.Column('usuario_id', sa.Integer(), nullable=True),
     sa.Column('nota_venta_id', sa.Integer(), nullable=True),
     sa.Column('detalle', sa.Text(), nullable=True),
-    sa.ForeignKeyConstraint(['almacen_destino_id'], ['almacenes.id'], ),
-    sa.ForeignKeyConstraint(['almacen_origen_id'], ['almacenes.id'], ),
-    sa.ForeignKeyConstraint(['nota_venta_id'], ['notas_venta.id'], ),
-    sa.ForeignKeyConstraint(['usuario_id'], ['usuarios.id'], ),
-    sa.PrimaryKeyConstraint('id')
+    sa.ForeignKeyConstraint(['almacen_destino_id'], ['almacenes.id'], name=op.f('fk_historial_movimientos_almacen_destino_id_almacenes')),
+    sa.ForeignKeyConstraint(['almacen_origen_id'], ['almacenes.id'], name=op.f('fk_historial_movimientos_almacen_origen_id_almacenes')),
+    sa.ForeignKeyConstraint(['nota_venta_id'], ['notas_venta.id'], name=op.f('fk_historial_movimientos_nota_venta_id_notas_venta')),
+    sa.ForeignKeyConstraint(['usuario_id'], ['usuarios.id'], name=op.f('fk_historial_movimientos_usuario_id_usuarios')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_historial_movimientos'))
     )
     with op.batch_alter_table('historial_movimientos', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_historial_movimientos_fecha'), ['fecha'], unique=False)
@@ -185,33 +203,15 @@ def upgrade():
     sa.Column('iva', sa.Numeric(precision=12, scale=2), nullable=True),
     sa.Column('total', sa.Numeric(precision=12, scale=2), nullable=True),
     sa.Column('cancelada', sa.Boolean(), nullable=False),
-    sa.ForeignKeyConstraint(['generado_por_id'], ['usuarios.id'], ),
-    sa.ForeignKeyConstraint(['nota_venta_id'], ['notas_venta.id'], ),
-    sa.PrimaryKeyConstraint('id'),
+    sa.ForeignKeyConstraint(['generado_por_id'], ['usuarios.id'], name=op.f('fk_remisiones_generado_por_id_usuarios')),
+    sa.ForeignKeyConstraint(['nota_venta_id'], ['notas_venta.id'], name=op.f('fk_remisiones_nota_venta_id_notas_venta')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_remisiones')),
     sa.UniqueConstraint('nota_venta_id', 'tipo', name='uq_remision_nota_tipo')
     )
     with op.batch_alter_table('remisiones', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_remisiones_folio'), ['folio'], unique=True)
         batch_op.create_index(batch_op.f('ix_remisiones_nota_venta_id'), ['nota_venta_id'], unique=False)
 
-    op.create_table('entregas',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('remision_id', sa.Integer(), nullable=False),
-    sa.Column('tecnico_id', sa.Integer(), nullable=False),
-    sa.Column('checklist_almacen_ok', sa.Boolean(), nullable=False),
-    sa.Column('fecha_checklist_almacen', sa.DateTime(timezone=True), nullable=True),
-    sa.Column('checklist_hospital_ok', sa.Boolean(), nullable=False),
-    sa.Column('fecha_checklist_hospital', sa.DateTime(timezone=True), nullable=True),
-    sa.Column('fecha_asignacion', sa.DateTime(timezone=True), nullable=False),
-    sa.Column('fecha_entrega', sa.DateTime(timezone=True), nullable=True),
-    sa.Column('recibe_nombre', sa.String(length=120), nullable=True),
-    sa.Column('observaciones', sa.Text(), nullable=True),
-    sa.Column('fecha_regreso_equipo', sa.DateTime(timezone=True), nullable=True),
-    sa.ForeignKeyConstraint(['remision_id'], ['remisiones.id'], ),
-    sa.ForeignKeyConstraint(['tecnico_id'], ['usuarios.id'], ),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('remision_id')
-    )
     op.create_table('checklist_items',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('entrega_id', sa.Integer(), nullable=False),
@@ -220,9 +220,9 @@ def upgrade():
     sa.Column('verificado', sa.Boolean(), nullable=False),
     sa.Column('codigo_escaneado', sa.String(length=64), nullable=True),
     sa.Column('fecha', sa.DateTime(timezone=True), nullable=True),
-    sa.ForeignKeyConstraint(['detalle_id'], ['detalle_nota_venta.id'], ),
-    sa.ForeignKeyConstraint(['entrega_id'], ['entregas.id'], ),
-    sa.PrimaryKeyConstraint('id')
+    sa.ForeignKeyConstraint(['detalle_id'], ['detalle_nota_venta.id'], name=op.f('fk_checklist_items_detalle_id_detalle_nota_venta')),
+    sa.ForeignKeyConstraint(['entrega_id'], ['entregas.id'], name=op.f('fk_checklist_items_entrega_id_entregas')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_checklist_items'))
     )
     with op.batch_alter_table('checklist_items', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_checklist_items_entrega_id'), ['entrega_id'], unique=False)
@@ -243,10 +243,10 @@ def upgrade():
     sa.Column('notas', sa.Text(), nullable=True),
     sa.Column('pdf_path', sa.String(length=255), nullable=True),
     sa.Column('fecha_devolucion', sa.DateTime(timezone=True), nullable=True),
-    sa.ForeignKeyConstraint(['emitida_por_id'], ['usuarios.id'], ),
-    sa.ForeignKeyConstraint(['entrega_id'], ['entregas.id'], ),
-    sa.ForeignKeyConstraint(['equipo_id'], ['equipo_medico.id'], ),
-    sa.PrimaryKeyConstraint('id')
+    sa.ForeignKeyConstraint(['emitida_por_id'], ['usuarios.id'], name=op.f('fk_responsivas_emitida_por_id_usuarios')),
+    sa.ForeignKeyConstraint(['entrega_id'], ['entregas.id'], name=op.f('fk_responsivas_entrega_id_entregas')),
+    sa.ForeignKeyConstraint(['equipo_id'], ['equipo_medico.id'], name=op.f('fk_responsivas_equipo_id_equipo_medico')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_responsivas'))
     )
     with op.batch_alter_table('responsivas', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_responsivas_entrega_id'), ['entrega_id'], unique=False)
@@ -268,7 +268,6 @@ def downgrade():
         batch_op.drop_index(batch_op.f('ix_checklist_items_entrega_id'))
 
     op.drop_table('checklist_items')
-    op.drop_table('entregas')
     with op.batch_alter_table('remisiones', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_remisiones_nota_venta_id'))
         batch_op.drop_index(batch_op.f('ix_remisiones_folio'))
@@ -279,6 +278,7 @@ def downgrade():
         batch_op.drop_index(batch_op.f('ix_historial_movimientos_fecha'))
 
     op.drop_table('historial_movimientos')
+    op.drop_table('entregas')
     with op.batch_alter_table('detalle_nota_venta', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_detalle_nota_venta_nota_venta_id'))
 

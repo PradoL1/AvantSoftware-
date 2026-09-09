@@ -42,22 +42,24 @@ class Remision(db.Model):
     total = db.Column(db.Numeric(12, 2), default=0)
     cancelada = db.Column(db.Boolean, nullable=False, default=False)
 
-    entrega = db.relationship(
-        "Entrega", back_populates="remision", uselist=False, cascade="all, delete-orphan"
-    )
-
     def __repr__(self):
         return f"<Remision {self.folio}>"
 
 
 class Entrega(db.Model):
+    """La salida a campo de una nota completa.
+
+    Cuelga de la nota y no de la remision: una nota emite hasta dos remisiones
+    (insumos y equipos) pero el tecnico hace un solo viaje con todo.
+    """
+
     __tablename__ = "entregas"
 
     id = db.Column(db.Integer, primary_key=True)
-    remision_id = db.Column(
-        db.Integer, db.ForeignKey("remisiones.id"), nullable=False, unique=True
+    nota_venta_id = db.Column(
+        db.Integer, db.ForeignKey("notas_venta.id"), nullable=False, unique=True
     )
-    remision = db.relationship("Remision", back_populates="entrega")
+    nota = db.relationship("NotaVenta", back_populates="entrega")
 
     tecnico_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"), nullable=False)
     tecnico = db.relationship("Usuario")
@@ -85,7 +87,7 @@ class Entrega(db.Model):
         return self.checklist_almacen_ok and self.checklist_hospital_ok
 
     def __repr__(self):
-        return f"<Entrega remision={self.remision_id}>"
+        return f"<Entrega nota={self.nota_venta_id}>"
 
 
 class ChecklistItem(db.Model):
