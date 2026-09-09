@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}{{ "Editar usuario" if usuario else "Nuevo usuario" }} &middot; AVANT{% endblock %}
+
+{% macro campo(f, ancho="col-md-6") %}
+  <div class="{{ ancho }}">
+    {{ f.label(class="form-label fw-semibold small") }}
+    {{ f(class="form-control" + (" is-invalid" if f.errors else ""), **kwargs) }}
+    {% for e in f.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+    {% if f.description %}<div class="form-text">{{ f.description }}</div>{% endif %}
+  </div>
+{% endmacro %}
+
+{% block contenido %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <div class="text-uppercase small text-muted fw-semibold">Administracion</div>
+    <h2 class="mb-0">{{ usuario.nombre if usuario else "Nuevo usuario" }}</h2>
+  </div>
+  <a class="btn btn-outline-secondary" href="{{ url_for('auth.usuarios') }}">Cancelar</a>
+</div>
+
+{% if es_uno_mismo %}
+  <div class="alert alert-info">
+    Esta es tu propia cuenta. No puedes quitarte el rol de administrador ni
+    desactivarte: si lo hicieras, quedarias fuera del sistema.
+  </div>
+{% endif %}
+
+<form method="post" novalidate>
+  {{ form.hidden_tag() }}
+
+  <div class="card p-4 mb-3">
+    <div class="row g-3">
+      {{ campo(form.nombre, "col-md-6") }}
+      {{ campo(form.email, "col-md-6", type="email", autocomplete="off") }}
+      <div class="col-md-4">
+        {{ form.rol.label(class="form-label fw-semibold small") }}
+        {{ form.rol(class="form-select", disabled=es_uno_mismo) }}
+        {% if es_uno_mismo %}
+          {# Deshabilitado no se envia: se manda el valor actual aparte. #}
+          <input type="hidden" name="rol" value="{{ usuario.rol }}">
+        {% endif %}
+      </div>
+      {{ campo(form.password, "col-md-4", type="password", autocomplete="new-password") }}
+      <div class="col-md-4 d-flex align-items-center">
+        <div class="form-check mt-3">
+          {{ form.activo(class="form-check-input", disabled=es_uno_mismo) }}
+          {{ form.activo.label(class="form-check-label") }}
+          {% if es_uno_mismo %}
+            <input type="hidden" name="activo" value="y">
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="d-flex justify-content-end gap-2 mb-5">
+    <a class="btn btn-outline-secondary" href="{{ url_for('auth.usuarios') }}">Cancelar</a>
+    {{ form.submit(class="btn btn-success") }}
+  </div>
+</form>
+{% endblock %}

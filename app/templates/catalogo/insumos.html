@@ -5,7 +5,9 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h1 class="h3 mb-0">Insumos</h1>
   {% if current_user.es_revisor %}
-    <a class="btn btn-primary" href="{{ url_for('catalogo.nuevo_insumo') }}">Nuevo insumo</a>
+    <a class="btn btn-primary" href="{{ url_for("catalogo.editar_insumo") }}">
+      <i class="fas fa-plus me-1"></i> Nuevo insumo
+    </a>
   {% endif %}
 </div>
 
@@ -27,7 +29,11 @@
           {% for insumo in insumos %}
             <tr class="{% if insumo.bajo_minimo %}table-warning{% endif %}">
               <td><code>{{ insumo.codigo_barras }}</code></td>
-              <td>{{ insumo.nombre }}</td>
+              <td>
+                {% if current_user.es_revisor %}
+                  <a href="{{ url_for("catalogo.editar_insumo", insumo_id=insumo.id) }}">{{ insumo.nombre }}</a>
+                {% else %}{{ insumo.nombre }}{% endif %}
+              </td>
               <td>{{ insumo.unidad_medida }}</td>
               <td class="text-end">{{ insumo.stock_actual }}</td>
               <td class="text-end">{{ insumo.stock_apartado }}</td>

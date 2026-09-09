@@ -7,7 +7,9 @@
   {% if current_user.es_revisor %}
     <div class="d-flex gap-2">
       <a class="btn btn-outline-secondary" href="{{ url_for('catalogo.etiquetas') }}">Etiquetas</a>
-      <a class="btn btn-primary" href="{{ url_for('catalogo.nuevo_equipo') }}">Nuevo equipo</a>
+      <a class="btn btn-primary" href="{{ url_for("catalogo.editar_equipo") }}">
+        <i class="fas fa-plus me-1"></i> Nuevo equipo
+      </a>
     </div>
   {% endif %}
 </div>
@@ -27,7 +29,11 @@
           {% for equipo in equipos %}
             <tr>
               <td><code>{{ equipo.codigo_barras }}</code></td>
-              <td>{{ equipo.descripcion }}</td>
+              <td>
+                {% if current_user.es_revisor %}
+                  <a href="{{ url_for("catalogo.editar_equipo", equipo_id=equipo.id) }}">{{ equipo.descripcion }}</a>
+                {% else %}{{ equipo.descripcion }}{% endif %}
+              </td>
               <td>{{ equipo.numero_serie or '-' }}</td>
               <td>
                 <span class="badge text-bg-{{ EstadoEquipo.COLORES[equipo.estado] }}">

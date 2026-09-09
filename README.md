@@ -117,17 +117,22 @@ python tests\revision.py    # aprobación, rechazo, apartado y kardex
 python tests\remisiones.py  # emisión, datos fiscales y PDF
 python tests\logistica.py   # checklist, entrega, responsiva y regreso
 python tests\precios.py     # hospitales, tarifario y captura de precios
+python tests\catalogo.py    # altas de equipo, insumos y usuarios
 ```
 
 **El flujo completo del contexto §2 ya corre de punta a punta**, de
 `pendiente_revision` a `cerrada`.
 
+**Altas del catálogo**: equipo médico (con sugerencia de código de barras al
+estilo del sistema anterior), insumos con sus existencias por almacén, y
+usuarios. Ajustar existencias a mano deja un movimiento en el kardex con su
+saldo anterior y nuevo, y nunca puede bajar de lo que ya está apartado.
+
 **Falta (marcado con `TODO` en el código):**
 
-1. ABC de usuarios y catálogos (el formulario `UsuarioForm` ya está hecho).
-2. Impresión de etiquetas con JsBarcode (medidas ya conocidas, ver abajo).
-3. Reportes, trazabilidad y planificación de demanda.
-4. Pantalla del kardex (los movimientos ya se escriben, falta consultarlos).
+1. Impresión de etiquetas con JsBarcode (medidas ya conocidas, ver abajo).
+2. Reportes, trazabilidad y planificación de demanda.
+3. Pantalla del kardex (los movimientos ya se escriben, falta consultarlos).
 
 ## Pendientes técnicos
 
@@ -311,3 +316,26 @@ el precio se copia al renglón al guardarse.
 
 Si falta una tarifa, el equipo entra en cero y la pantalla de revisión lo
 señala. Que falte un precio nunca impide levantar la nota.
+
+## Cargar los datos reales
+
+Cuando lleguen del negocio, todo se captura desde la app: **Supabase no pide
+nada**, las tablas las crea `flask db upgrade`.
+
+El orden importa, porque unas cosas dependen de otras:
+
+1. `flask sembrar-almacenes` — los cuatro almacenes.
+2. **Usuarios** (`Administración → Usuarios`): los 11, con su rol.
+3. **Hospitales** (`Catálogo → Hospitales`): con la razón social que le factura
+   a cada uno. Sin esto el vendedor no puede levantar notas.
+4. **Equipo médico** e **insumos** (`Catálogo`): el insumo pide de una vez sus
+   existencias por almacén.
+5. **Tarifas de renta** (`Catálogo → Tarifas`): equipo × hospital. Es la matriz
+   más laboriosa; requiere hospitales y equipo ya capturados.
+
+El código de barras es **único entre equipo e insumos**, no solo dentro de cada
+catálogo: el lector no sabe qué tipo de artículo está leyendo.
+
+Los ajustes de existencias hechos a mano quedan en el kardex como movimiento de
+ajuste, con saldo anterior y nuevo. Y nunca pueden dejar el saldo por debajo de
+lo que ya está apartado en notas aprobadas.

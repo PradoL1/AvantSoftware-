@@ -6,14 +6,17 @@ Lectura para todos los roles; la edicion es exclusiva de revisor_admin.
 from datetime import date
 
 from flask import flash, jsonify, redirect, render_template, request, url_for
-from flask_login import login_required
+from flask_login import current_user, login_required
 from sqlalchemy.exc import IntegrityError
 
 from app.blueprints.catalogo import bp
-from app.blueprints.catalogo.formularios import HospitalForm, TarifaForm
-from app.constantes import Rol, TipoItem
+from app.blueprints.catalogo.formularios import (EquipoForm, HospitalForm,
+                                                InsumoForm, TarifaForm)
+from app.constantes import EstadoEquipo, Rol, TipoItem
 from app.extensions import db
-from app.models import EquipoMedico, Hospital, Insumo, TarifaEquipo
+from app.models import (Almacen, EquipoMedico, Hospital, Insumo, TarifaEquipo)
+from app.servicios.catalogo import (ErrorDeCatalogo, ajustar_existencia,
+                                    sugerir_codigo, validar_codigo_libre)
 from app.utils.decoradores import rol_requerido
 
 
@@ -154,25 +157,143 @@ def tarifas():
     return render_template("catalogo/tarifas.html", form=form, tarifas=lista)
 
 
-# --- Por implementar -------------------------------------------------------
+# --- Alta y edicion del catalogo --------------------------------------------
+
+
+def _almacenes():
+    return Almacen.query.filter_by(activo=True).order_by(Almacen.nombre).all()
 
 
 @bp.route("/equipo/nuevo", methods=["GET", "POST"])
+@bp.route("/equipo/<int:equipo_id>", methods=["GET", "POST"])
 @login_required
 @rol_requerido(Rol.REVISOR_ADMIN)
-def nuevo_equipo():
-    # TODO: alta de equipo con generacion automatica de codigo de barras.
-    flash("El alta de equipo esta por implementarse.", "info")
-    return redirect(url_for("catalogo.equipo"))
+def editar_equipo(equipo_id=None):
+    pieza = EquipoMedico.query.get_or_404(equipo_id) if equipo_id else None
+    form = EquipoForm(obj=pieza)
+    form.almacen_id.choices = [(0, "-- Sin asignar --")] + [
+        (a.id, a.nombre) for a in _almacenes()
+    ]
+
+    if form.validate_on_submit():
+        try:
+            codigo = validar_codigo_libre(
+                form.codigo_barras.data, EquipoMedico,
+                pieza.id if pieza else None,
+            )
+        except ErrorDeCatalogo as e:
+            flash(str(e), "danger")
+        else:
+            # El almacen se resuelve ANTES de tocar la sesion: cualquier
+            # consulta posterior dispara un autoflush, y si ese flush choca con
+            # un unique, el error salta fuera del try de abajo.
+            almacen_id = form.almacen_id.data or None
+            almacen = db.session.get(Almacen, almacen_id) if almacen_id else None
+
+            if pieza is None:
+                pieza = EquipoMedico()
+                db.session.add(pieza)
+            form.populate_obj(pieza)
+            pieza.codigo_barras = codigo
+            pieza.almacen_id = almacen_id
+            # El estado lo maneja el flujo (apartado, rentado...), no este
+            # formulario: aqui solo se da de alta o se corrigen los datos.
+            if not pieza.estado:
+                pieza.estado = EstadoEquipo.DISPONIBLE
+            if not pieza.ubicacion_actual and almacen:
+                pieza.ubicacion_actual = almacen.nombre
+
+            try:
+                db.session.commit()
+            except IntegrityError:
+                db.session.rollback()
+                flash("Ese numero de serie ya esta registrado.", "danger")
+            else:
+                flash(f"Equipo {pieza.descripcion} guardado.", "success")
+                return redirect(url_for("catalogo.equipo"))
+
+    if pieza is None and not form.codigo_barras.data and form.nombre.data:
+        form.codigo_barras.data = sugerir_codigo(form.nombre.data,
+                                                 form.modelo.data)
+
+    return render_template("catalogo/equipo_form.html", form=form, equipo=pieza)
 
 
 @bp.route("/insumos/nuevo", methods=["GET", "POST"])
+@bp.route("/insumos/<int:insumo_id>", methods=["GET", "POST"])
 @login_required
 @rol_requerido(Rol.REVISOR_ADMIN)
-def nuevo_insumo():
-    # TODO: alta de insumo con generacion automatica de codigo de barras.
-    flash("El alta de insumos esta por implementarse.", "info")
-    return redirect(url_for("catalogo.insumos"))
+def editar_insumo(insumo_id=None):
+    insumo = Insumo.query.get_or_404(insumo_id) if insumo_id else None
+    form = InsumoForm(obj=insumo)
+    almacenes = _almacenes()
+
+    if form.validate_on_submit():
+        try:
+            codigo = validar_codigo_libre(
+                form.codigo_barras.data, Insumo,
+                insumo.id if insumo else None,
+            )
+        except ErrorDeCatalogo as e:
+            flash(str(e), "danger")
+        else:
+            nuevo = insumo is None
+            if nuevo:
+                insumo = Insumo()
+                db.session.add(insumo)
+            form.populate_obj(insumo)
+            insumo.codigo_barras = codigo
+            insumo.sku = (form.sku.data or "").strip() or None
+            db.session.flush()
+
+            # Primero se convierten todos los valores y despues se ajusta. Si
+            # se mezclan las dos cosas en un solo try, un error de la capa de
+            # inventario acaba reportandose como "no es un numero", que manda
+            # a buscar el problema al lugar equivocado.
+            cantidades = []
+            error = None
+            for almacen in almacenes:
+                crudo = request.form.get(f"existencia_{almacen.id}")
+                if crudo is None or crudo.strip() == "":
+                    continue
+                try:
+                    cantidades.append((almacen, int(crudo)))
+                except (TypeError, ValueError):
+                    error = (f"'{crudo}' no es una cantidad valida para "
+                             f"{almacen.nombre}.")
+                    break
+
+            if error is None:
+                try:
+                    for almacen, cantidad in cantidades:
+                        ajustar_existencia(
+                            insumo, almacen, cantidad, current_user,
+                            motivo="Alta inicial" if nuevo else None,
+                        )
+                except ErrorDeCatalogo as e:
+                    error = str(e)
+
+            if error:
+                db.session.rollback()
+                flash(error, "danger")
+            else:
+                try:
+                    db.session.commit()
+                except IntegrityError:
+                    db.session.rollback()
+                    flash("Ese SKU ya esta registrado.", "danger")
+                else:
+                    flash(f"Insumo {insumo.nombre} guardado.", "success")
+                    return redirect(url_for("catalogo.insumos"))
+
+    if insumo is None and not form.codigo_barras.data and form.nombre.data:
+        form.codigo_barras.data = sugerir_codigo(form.nombre.data)
+
+    return render_template("catalogo/insumo_form.html", form=form,
+                           insumo=insumo, almacenes=almacenes)
+
+
+# --- Por implementar -------------------------------------------------------
 
 
 @bp.route("/etiquetas")

@@ -66,6 +66,18 @@
       <i class="fas fa-boxes-stacked"></i> Insumos
     </a>
 
+    {% if current_user.es_revisor %}
+      <div class="seccion">Administracion</div>
+      <a class="nav-link nav-child {{ 'active' if request.endpoint in ('auth.usuarios', 'auth.editar_usuario') }}"
+         href="{{ url_for('auth.usuarios') }}">
+        <i class="fas fa-users"></i> Usuarios
+      </a>
+      <a class="nav-link nav-child {{ 'active' if request.endpoint == 'catalogo.tarifas' }}"
+         href="{{ url_for('catalogo.tarifas') }}">
+        <i class="fas fa-tags"></i> Tarifas de renta
+      </a>
+    {% endif %}
+
     <div class="sidebar-user">
       <div class="px-2 mb-2 small">
         <div class="fw-semibold text-white">{{ current_user.nombre }}</div>

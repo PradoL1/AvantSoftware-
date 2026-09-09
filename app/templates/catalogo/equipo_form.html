@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}{{ "Editar equipo" if equipo else "Nuevo equipo" }} &middot; AVANT{% endblock %}
+
+{% macro campo(f, ancho="col-md-4") %}
+  <div class="{{ ancho }}">
+    {{ f.label(class="form-label fw-semibold small") }}
+    {{ f(class="form-control" + (" is-invalid" if f.errors else ""), **kwargs) }}
+    {% for e in f.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+    {% if f.description %}<div class="form-text">{{ f.description }}</div>{% endif %}
+  </div>
+{% endmacro %}
+
+{% block contenido %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <div class="text-uppercase small text-muted fw-semibold">Catalogo</div>
+    <h2 class="mb-0">{{ equipo.descripcion if equipo else "Nuevo equipo medico" }}</h2>
+    {% if equipo %}
+      <div class="text-muted small">
+        Estado actual:
+        <span class="badge text-bg-{{ EstadoEquipo.COLORES[equipo.estado] }}">
+          {{ equipo.estado_etiqueta }}
+        </span>
+        &middot; {{ equipo.ubicacion_actual or 'sin ubicacion' }}
+      </div>
+    {% endif %}
+  </div>
+  <a class="btn btn-outline-secondary" href="{{ url_for('catalogo.equipo') }}">Cancelar</a>
+</div>
+
+<form method="post" novalidate>
+  {{ form.hidden_tag() }}
+
+  <div class="card p-4 mb-3">
+    <h5 class="mb-3 border-bottom pb-2">Identificacion</h5>
+    <div class="row g-3">
+      {{ campo(form.nombre, "col-md-6", id="campoNombre") }}
+      {{ campo(form.tipo_equipo, "col-md-3") }}
+      {{ campo(form.numero_serie, "col-md-3") }}
+      {{ campo(form.marca, "col-md-3") }}
+      {{ campo(form.modelo, "col-md-3", id="campoModelo") }}
+      {{ campo(form.codigo_barras, "col-md-3", id="campoCodigo") }}
+      <div class="col-md-3 d-flex align-items-end">
+        <button type="button" class="btn btn-outline-secondary w-100 mb-2"
+                id="btnSugerir">
+          <i class="fas fa-wand-magic-sparkles me-1"></i> Sugerir codigo
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card p-4 mb-3">
+    <h5 class="mb-3 border-bottom pb-2">Propiedad y ubicacion</h5>
+    <div class="row g-3">
+      <div class="col-md-4">
+        {{ form.empresa_propietaria.label(class="form-label fw-semibold small") }}
+        {{ form.empresa_propietaria(class="form-select") }}
+      </div>
+      {{ campo(form.moi, "col-md-4") }}
+      <div class="col-md-4">
+        {{ form.almacen_id.label(class="form-label fw-semibold small") }}
+        {{ form.almacen_id(class="form-select") }}
+      </div>
+      {{ campo(form.observaciones, "col-12", rows=2) }}
+      <div class="col-12">
+        <div class="form-check">
+          {{ form.activo(class="form-check-input") }}
+          {{ form.activo.label(class="form-check-label") }}
+          <div class="form-text">
+            Dar de baja no borra nada: el equipo desaparece de las listas pero
+            conserva su historial.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="d-flex justify-content-end gap-2 mb-5">
+    <a class="btn btn-outline-secondary" href="{{ url_for('catalogo.equipo') }}">Cancelar</a>
+    {{ form.submit(class="btn btn-success") }}
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  "use strict";
+  // Sugerencia local, al estilo del sistema anterior (TOLA1, ENBO1). El
+  // servidor vuelve a comprobar que el codigo este libre.
+  const boton = document.getElementById("btnSugerir");
+  const nombre = document.getElementById("campoNombre");
+  const modelo = document.getElementById("campoModelo");
+  const codigo = document.getElementById("campoCodigo");
+  if (!boton) return;
+
+  boton.addEventListener("click", () => {
+    const palabras = (nombre.value || "")
+      .toUpperCase()
+      .split(/\W+/)
+      .filter((p) => p.length > 2 && !["DEL", "LOS", "LAS", "CON", "PARA"].includes(p));
+
+    let base = "ART";
+    if (palabras.length === 1) base = palabras[0].slice(0, 4);
+    else if (palabras.length > 1) base = palabras[0].slice(0, 2) + palabras[1].slice(0, 2);
+
+    const mod = (modelo.value || "").toUpperCase().replace(/\W+/g, "");
+    if (mod) base = base.slice(0, 3) + mod.slice(0, 1);
+
+    codigo.value = base + "1";
+    codigo.focus();
+  });
+})();
+</script>
+{% endblock %}

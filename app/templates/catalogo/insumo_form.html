@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}{{ "Editar insumo" if insumo else "Nuevo insumo" }} &middot; AVANT{% endblock %}
+
+{% macro campo(f, ancho="col-md-4") %}
+  <div class="{{ ancho }}">
+    {{ f.label(class="form-label fw-semibold small") }}
+    {{ f(class="form-control" + (" is-invalid" if f.errors else ""), **kwargs) }}
+    {% for e in f.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+    {% if f.description %}<div class="form-text">{{ f.description }}</div>{% endif %}
+  </div>
+{% endmacro %}
+
+{% block contenido %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <div class="text-uppercase small text-muted fw-semibold">Catalogo</div>
+    <h2 class="mb-0">{{ insumo.nombre if insumo else "Nuevo insumo" }}</h2>
+  </div>
+  <a class="btn btn-outline-secondary" href="{{ url_for('catalogo.insumos') }}">Cancelar</a>
+</div>
+
+<form method="post" novalidate>
+  {{ form.hidden_tag() }}
+
+  <div class="card p-4 mb-3">
+    <h5 class="mb-3 border-bottom pb-2">Identificacion</h5>
+    <div class="row g-3">
+      {{ campo(form.nombre, "col-md-6") }}
+      {{ campo(form.sku, "col-md-3") }}
+      {{ campo(form.unidad_medida, "col-md-3") }}
+      {{ campo(form.codigo_barras, "col-md-4") }}
+      {{ campo(form.proveedor, "col-md-5") }}
+      <div class="col-md-3">
+        <div class="form-check mt-4 pt-2">
+          {{ form.activo(class="form-check-input") }}
+          {{ form.activo.label(class="form-check-label") }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card p-4 mb-3">
+    <h5 class="mb-3 border-bottom pb-2">Costo y minimo</h5>
+    <div class="row g-3">
+      {{ campo(form.costo_unitario, "col-md-4") }}
+      {{ campo(form.stock_minimo, "col-md-4") }}
+    </div>
+    <p class="form-text mb-0">
+      Los insumos no llevan precio de venta: se negocia en cada nota. El costo
+      sirve para valuar el kardex.
+    </p>
+  </div>
+
+  <div class="card p-4 mb-3">
+    <h5 class="mb-3 border-bottom pb-2">
+      <i class="fas fa-warehouse text-primary me-2"></i> Existencias por almacen
+    </h5>
+    <p class="text-muted small">
+      Cada cambio aqui queda registrado en el kardex como ajuste, con su saldo
+      anterior y nuevo. Dejar un campo en blanco lo deja como esta.
+    </p>
+    <div class="row g-3">
+      {% for almacen in almacenes %}
+        {% set existencia = insumo.existencia_en(almacen.id) if insumo else None %}
+        <div class="col-md-3">
+          <label class="form-label fw-semibold small" for="existencia_{{ almacen.id }}">
+            {{ almacen.nombre }}
+          </label>
+          <input type="number" min="0" class="form-control text-end"
+                 id="existencia_{{ almacen.id }}" name="existencia_{{ almacen.id }}"
+                 value="{{ existencia.cantidad if existencia else '' }}"
+                 placeholder="0">
+          {% if existencia and existencia.apartado %}
+            <div class="form-text text-warning">
+              {{ existencia.apartado }} apartadas en notas aprobadas
+            </div>
+          {% endif %}
+        </div>
+      {% else %}
+        <div class="col-12">
+          <p class="text-muted mb-0">
+            No hay almacenes dados de alta. Corre <code>flask sembrar-almacenes</code>.
+          </p>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="d-flex justify-content-end gap-2 mb-5">
+    <a class="btn btn-outline-secondary" href="{{ url_for('catalogo.insumos') }}">Cancelar</a>
+    {{ form.submit(class="btn btn-success") }}
+  </div>
+</form>
+{% endblock %}

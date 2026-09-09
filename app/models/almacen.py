@@ -51,9 +51,17 @@ class Existencia(db.Model):
     # Comprometido en notas aprobadas que aun no se cierran.
     apartado = db.Column(db.Integer, nullable=False, default=0)
 
+    def __init__(self, **kwargs):
+        # El default de la columna solo se aplica al insertar. Sin esto, una
+        # existencia recien construida trae None y cualquier comparacion o
+        # suma revienta antes del flush.
+        kwargs.setdefault("cantidad", 0)
+        kwargs.setdefault("apartado", 0)
+        super().__init__(**kwargs)
+
     @property
     def disponible(self):
-        return self.cantidad - self.apartado
+        return (self.cantidad or 0) - (self.apartado or 0)
 
     def __repr__(self):
         return f"<Existencia insumo={self.insumo_id} almacen={self.almacen_id} {self.cantidad}>"

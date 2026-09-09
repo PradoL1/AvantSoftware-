@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Usuarios &middot; AVANT{% endblock %}
+
+{% block contenido %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <div class="text-uppercase small text-muted fw-semibold">Administracion</div>
+    <h2 class="mb-0">Usuarios</h2>
+  </div>
+  <a class="btn btn-primary" href="{{ url_for('auth.editar_usuario') }}">
+    <i class="fas fa-plus me-1"></i> Nuevo usuario
+  </a>
+</div>
+
+<div class="card p-4">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Nombre</th>
+          <th>Correo</th>
+          <th>Rol</th>
+          <th class="text-center">Estatus</th>
+          <th>Alta</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in usuarios %}
+          <tr class="{{ 'text-muted' if not u.activo }}">
+            <td>
+              <a href="{{ url_for('auth.editar_usuario', usuario_id=u.id) }}">{{ u.nombre }}</a>
+              {% if u.id == current_user.id %}
+                <span class="badge text-bg-light">tu</span>
+              {% endif %}
+            </td>
+            <td class="small">{{ u.email }}</td>
+            <td><span class="badge text-bg-secondary">{{ u.rol_etiqueta }}</span></td>
+            <td class="text-center">
+              {% if u.activo %}
+                <span class="badge text-bg-success">Activo</span>
+              {% else %}
+                <span class="badge text-bg-dark">Inactivo</span>
+              {% endif %}
+            </td>
+            <td class="small text-muted">{{ u.fecha_creacion.strftime('%d/%m/%Y') }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="form-text mb-0">
+    Los usuarios no se borran: se desactivan. Asi conservan su historial de
+    notas, aprobaciones y entregas.
+  </p>
+</div>
+{% endblock %}

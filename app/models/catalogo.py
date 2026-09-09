@@ -106,11 +106,11 @@ class Insumo(db.Model):
 
     @property
     def stock_actual(self):
-        return sum(e.cantidad for e in self.existencias)
+        return sum(e.cantidad or 0 for e in self.existencias)
 
     @property
     def stock_apartado(self):
-        return sum(e.apartado for e in self.existencias)
+        return sum(e.apartado or 0 for e in self.existencias)
 
     @property
     def stock_disponible(self):
