@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% from "_macros.html" import tabla_notas %}
+{% block title %}Logistica &middot; AVANT{% endblock %}
+
+{% block contenido %}
+<h1 class="h3 mb-3">Entregas</h1>
+<div class="card">
+  <div class="card-body">
+    {{ tabla_notas(notas, 'logistica.detalle', 'No hay entregas asignadas.') }}
+  </div>
+</div>
+{% endblock %}

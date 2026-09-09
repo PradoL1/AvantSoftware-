@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Inicio &middot; AVANT{% endblock %}
+
+{% macro tabla_notas(notas, ruta) %}
+  {% if notas %}
+    <div class="table-responsive">
+      <table class="table table-sm table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Folio</th><th>Hospital</th><th>Requerida</th><th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for nota in notas %}
+          <tr>
+            <td><a href="{{ url_for(ruta, nota_id=nota.id) }}">{{ nota.folio }}</a></td>
+            <td>{{ nota.hospital }}</td>
+            <td>{{ nota.fecha_requerida.strftime('%d/%m/%Y') }}</td>
+            <td><span class="badge text-bg-{{ nota.estado_color }}">{{ nota.estado_etiqueta }}</span></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="text-muted mb-0">Nada por aqui todavia.</p>
+  {% endif %}
+{% endmacro %}
+
+{% block contenido %}
+<h1 class="h3 mb-4">Hola, {{ current_user.nombre }}</h1>
+
+{% if current_user.es_vendedor %}
+  <div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span>Mis notas recientes</span>
+      <a class="btn btn-sm btn-primary" href="{{ url_for('notas.nueva') }}">Nueva nota</a>
+    </div>
+    <div class="card-body">{{ tabla_notas(mis_notas, 'notas.detalle') }}</div>
+  </div>
+
+{% elif current_user.es_revisor %}
+  <div class="card mb-4">
+    <div class="card-header">Pendientes de revision</div>
+    <div class="card-body">{{ tabla_notas(pendientes, 'revision.revisar') }}</div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">Insumos bajo el minimo</div>
+    <div class="card-body">
+      {% if insumos_bajo_minimo %}
+        <ul class="mb-0">
+          {% for insumo in insumos_bajo_minimo %}
+            <li>
+              {{ insumo.nombre }} &mdash;
+              disponible {{ insumo.stock_disponible }} {{ insumo.unidad_medida }}
+              (minimo {{ insumo.stock_minimo }})
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="text-muted mb-0">Todo el inventario esta por encima del minimo.</p>
+      {% endif %}
+    </div>
+  </div>
+
+{% elif current_user.es_tecnico %}
+  <div class="card">
+    <div class="card-header">Entregas asignadas</div>
+    <div class="card-body">{{ tabla_notas(en_logistica, 'logistica.detalle') }}</div>
+  </div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% from "_macros.html" import datos_nota, renglones_nota %}
+{% block title %}{{ nota.folio }} &middot; AVANT{% endblock %}
+
+{% block contenido %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Nota {{ nota.folio }}</h1>
+  {% if nota.editable %}
+    <a class="btn btn-outline-secondary"
+       href="{{ url_for('notas.editar', nota_id=nota.id) }}">Editar</a>
+  {% endif %}
+</div>
+
+<div class="row g-3">
+  <div class="col-md-5">
+    <div class="card h-100">
+      <div class="card-header">Datos</div>
+      <div class="card-body">{{ datos_nota(nota) }}</div>
+    </div>
+  </div>
+  <div class="col-md-7">
+    <div class="card h-100">
+      <div class="card-header">Articulos solicitados</div>
+      <div class="card-body">{{ renglones_nota(nota) }}</div>
+    </div>
+  </div>
+</div>
+
+<p class="mt-3">
+  <a href="{{ url_for('notas.listar') }}">&larr; Volver al listado</a>
+</p>
+{% endblock %}

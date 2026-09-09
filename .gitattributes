@@ -1,0 +1,3 @@
+# Guardar todo con LF en el repositorio. Git convierte a CRLF al hacer checkout
+# en Windows. Evita que el deploy en Linux (Render/Railway) reciba CRLF.
+* text=auto eol=lf

@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% from "_macros.html" import tabla_notas %}
+{% block title %}Revision &middot; AVANT{% endblock %}
+
+{% block contenido %}
+<h1 class="h3 mb-3">Notas pendientes de revision</h1>
+<div class="card">
+  <div class="card-body">
+    {{ tabla_notas(notas, 'revision.revisar', 'No hay notas pendientes. Todo al dia.') }}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,14 @@
+/* Estilos propios de AVANT.
+   Provisional: se reemplaza cuando se integre el CSS del sistema anterior. */
+
+body {
+  min-height: 100vh;
+}
+
+code {
+  font-size: 0.85em;
+}
+
+.table > :not(caption) > * > * {
+  vertical-align: middle;
+}

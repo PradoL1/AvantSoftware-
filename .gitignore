@@ -1,0 +1,27 @@
+# Entorno virtual
+venv/
+.venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Configuracion local / secretos
+.env
+*.local
+
+# Base de datos local
+*.db
+*.sqlite3
+
+# PDFs generados
+app/static/pdf/remisiones/*.pdf
+
+# Editores / SO
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini

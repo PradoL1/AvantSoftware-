@@ -1,0 +1,75 @@
+{# Macros reutilizables entre plantillas. #}
+
+{% macro tabla_notas(notas, ruta, vacio="Nada por aqui todavia.") %}
+  {% if notas %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Folio</th><th>Hospital</th><th>Vendedor</th>
+            <th>Requerida</th><th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for nota in notas %}
+          <tr>
+            <td><a href="{{ url_for(ruta, nota_id=nota.id) }}">{{ nota.folio }}</a></td>
+            <td>{{ nota.hospital }}</td>
+            <td>{{ nota.vendedor.nombre }}</td>
+            <td>{{ nota.fecha_requerida.strftime('%d/%m/%Y') }}</td>
+            <td><span class="badge text-bg-{{ nota.estado_color }}">{{ nota.estado_etiqueta }}</span></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="text-muted mb-0">{{ vacio }}</p>
+  {% endif %}
+{% endmacro %}
+
+{% macro renglones_nota(nota) %}
+  <table class="table table-sm align-middle">
+    <thead>
+      <tr><th>Tipo</th><th>Articulo</th><th class="text-end">Cantidad</th></tr>
+    </thead>
+    <tbody>
+      {% for detalle in nota.detalles %}
+        <tr>
+          <td>{{ TipoItem.ETIQUETAS[detalle.tipo] }}</td>
+          <td>{{ detalle.descripcion }}</td>
+          <td class="text-end">{{ detalle.cantidad }} {{ detalle.unidad_snapshot or '' }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="3" class="text-muted">Sin renglones.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endmacro %}
+
+{% macro datos_nota(nota) %}
+  <dl class="row mb-0">
+    <dt class="col-sm-4">Folio</dt><dd class="col-sm-8">{{ nota.folio }}</dd>
+    <dt class="col-sm-4">Hospital</dt><dd class="col-sm-8">{{ nota.hospital }}</dd>
+    <dt class="col-sm-4">Contacto</dt>
+    <dd class="col-sm-8">{{ nota.contacto_nombre or '-' }} {{ nota.contacto_telefono or '' }}</dd>
+    <dt class="col-sm-4">Direccion</dt><dd class="col-sm-8">{{ nota.direccion_entrega }}</dd>
+    <dt class="col-sm-4">Vendedor</dt><dd class="col-sm-8">{{ nota.vendedor.nombre }}</dd>
+    <dt class="col-sm-4">Creada</dt>
+    <dd class="col-sm-8">{{ nota.fecha_creacion.strftime('%d/%m/%Y %H:%M') }}</dd>
+    <dt class="col-sm-4">Requerida</dt>
+    <dd class="col-sm-8">{{ nota.fecha_requerida.strftime('%d/%m/%Y') }}</dd>
+    <dt class="col-sm-4">Estado</dt>
+    <dd class="col-sm-8">
+      <span class="badge text-bg-{{ nota.estado_color }}">{{ nota.estado_etiqueta }}</span>
+    </dd>
+    {% if nota.motivo_rechazo %}
+      <dt class="col-sm-4">Motivo de rechazo</dt>
+      <dd class="col-sm-8">{{ nota.motivo_rechazo }}</dd>
+    {% endif %}
+    {% if nota.observaciones %}
+      <dt class="col-sm-4">Observaciones</dt>
+      <dd class="col-sm-8">{{ nota.observaciones }}</dd>
+    {% endif %}
+  </dl>
+{% endmacro %}

@@ -1,0 +1,82 @@
+{# Plantilla base provisional.
+
+   Trae Bootstrap 5 por CDN solo para que la app sea usable desde el primer dia.
+   Cuando se exporten templates/ y static/ del sistema anterior (contexto,
+   seccion 1), se sustituye el <head> y la barra de navegacion por el diseno
+   real; los bloques (title, contenido, scripts) no deberian cambiar.
+#}
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}AVANT{% endblock %}</title>
+  <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+<body class="bg-light">
+
+{% if current_user.is_authenticated %}
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="{{ url_for('main.inicio') }}">AVANT</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+            data-bs-target="#menu" aria-controls="menu" aria-expanded="false"
+            aria-label="Menu">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="menu">
+      <ul class="navbar-nav me-auto">
+        {% if current_user.es_vendedor or current_user.es_revisor %}
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('notas.listar') }}">Notas de venta</a>
+          </li>
+        {% endif %}
+        {% if current_user.es_revisor %}
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('revision.bandeja') }}">Revision</a>
+          </li>
+        {% endif %}
+        {% if current_user.es_tecnico or current_user.es_revisor %}
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('logistica.bandeja') }}">Logistica</a>
+          </li>
+        {% endif %}
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" role="button"
+             data-bs-toggle="dropdown" aria-expanded="false">Catalogo</a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="{{ url_for('catalogo.equipo') }}">Equipo medico</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('catalogo.insumos') }}">Insumos</a></li>
+          </ul>
+        </li>
+      </ul>
+
+      <span class="navbar-text me-3">
+        {{ current_user.nombre }} &middot; {{ current_user.rol_etiqueta }}
+      </span>
+      <a class="btn btn-outline-light btn-sm" href="{{ url_for('auth.logout') }}">Salir</a>
+    </div>
+  </div>
+</nav>
+{% endif %}
+
+<main class="container py-4">
+  {% with mensajes = get_flashed_messages(with_categories=true) %}
+    {% for categoria, mensaje in mensajes %}
+      <div class="alert alert-{{ categoria }} alert-dismissible fade show" role="alert">
+        {{ mensaje }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+      </div>
+    {% endfor %}
+  {% endwith %}
+
+  {% block contenido %}{% endblock %}
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

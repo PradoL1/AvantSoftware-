@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Equipo medico &middot; AVANT{% endblock %}
+
+{% block contenido %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Equipo medico</h1>
+  {% if current_user.es_revisor %}
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-secondary" href="{{ url_for('catalogo.etiquetas') }}">Etiquetas</a>
+      <a class="btn btn-primary" href="{{ url_for('catalogo.nuevo_equipo') }}">Nuevo equipo</a>
+    </div>
+  {% endif %}
+</div>
+
+<div class="card">
+  <div class="card-body">
+    {% if equipos %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Codigo</th><th>Equipo</th><th>No. de serie</th>
+              <th>Estado</th><th>Ubicacion</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for equipo in equipos %}
+            <tr>
+              <td><code>{{ equipo.codigo_barras }}</code></td>
+              <td>{{ equipo.descripcion }}</td>
+              <td>{{ equipo.numero_serie or '-' }}</td>
+              <td>
+                <span class="badge text-bg-{{ EstadoEquipo.COLORES[equipo.estado] }}">
+                  {{ equipo.estado_etiqueta }}
+                </span>
+              </td>
+              <td>{{ equipo.ubicacion_actual or '-' }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="text-muted mb-0">El catalogo de equipo esta vacio.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

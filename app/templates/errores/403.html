@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Sin permiso &middot; AVANT{% endblock %}
+{% block contenido %}
+<div class="text-center py-5">
+  <h1 class="display-6">403</h1>
+  <p class="lead">Tu rol no tiene permiso para entrar aqui.</p>
+  <a class="btn btn-primary" href="{{ url_for('main.inicio') }}">Ir al inicio</a>
+</div>
+{% endblock %}

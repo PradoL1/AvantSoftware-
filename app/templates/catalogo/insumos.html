@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Insumos &middot; AVANT{% endblock %}
+
+{% block contenido %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Insumos</h1>
+  {% if current_user.es_revisor %}
+    <a class="btn btn-primary" href="{{ url_for('catalogo.nuevo_insumo') }}">Nuevo insumo</a>
+  {% endif %}
+</div>
+
+<div class="card">
+  <div class="card-body">
+    {% if insumos %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Codigo</th><th>Insumo</th><th>Unidad</th>
+              <th class="text-end">En almacen</th>
+              <th class="text-end">Apartado</th>
+              <th class="text-end">Disponible</th>
+              <th class="text-end">Minimo</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for insumo in insumos %}
+            <tr class="{% if insumo.bajo_minimo %}table-warning{% endif %}">
+              <td><code>{{ insumo.codigo_barras }}</code></td>
+              <td>{{ insumo.nombre }}</td>
+              <td>{{ insumo.unidad_medida }}</td>
+              <td class="text-end">{{ insumo.stock_actual }}</td>
+              <td class="text-end">{{ insumo.stock_apartado }}</td>
+              <td class="text-end fw-semibold">{{ insumo.stock_disponible }}</td>
+              <td class="text-end">{{ insumo.stock_minimo }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="text-muted mb-0">El catalogo de insumos esta vacio.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
