@@ -75,8 +75,9 @@
       <i class="fas fa-boxes-stacked text-primary me-2"></i> 3. Insumos solicitados
     </h5>
     <p class="text-muted small">
-      El precio de los insumos lo captura el area administrativa al revisar la
-      nota. Aqui solo se indica que se necesita y cuanto.
+      El precio lo fija el area administrativa al revisar la nota. Si ya
+      negociaste un monto con el hospital, anotalo en <em>precio propuesto</em>:
+      es opcional y sirve para que el revisor no tenga que preguntarte.
     </p>
 
     <div class="row g-2 align-items-end mb-3">
@@ -112,14 +113,18 @@
         <thead class="table-light">
           <tr>
             <th>Insumo</th>
-            <th class="text-end" style="width:8rem">Cantidad</th>
-            <th class="text-end" style="width:8rem">Disponible</th>
+            <th class="text-end" style="width:7rem">Cantidad</th>
+            <th class="text-end" style="width:9rem">
+              Precio propuesto
+              <div class="fw-normal text-muted" style="font-size:.75rem">opcional</div>
+            </th>
+            <th class="text-end" style="width:7rem">Disponible</th>
             <th class="text-center" style="width:9rem">Estatus</th>
             <th style="width:4rem"></th>
           </tr>
         </thead>
         <tbody id="tablaInsumos">
-          <tr data-vacio><td colspan="5" class="text-muted text-center py-3">Sin insumos agregados.</td></tr>
+          <tr data-vacio><td colspan="6" class="text-muted text-center py-3">Sin insumos agregados.</td></tr>
         </tbody>
       </table>
     </div>
@@ -208,7 +213,7 @@
   [
   {%- if nota -%}
     {%- for d in nota.detalles -%}
-      {"tipo": "{{ d.tipo }}", "id": {{ d.item_id }}, "cantidad": {{ d.cantidad }}}
+      {"tipo": "{{ d.tipo }}", "id": {{ d.item_id }}, "cantidad": {{ d.cantidad }}, "sugerido": {{ d.precio_sugerido if d.precio_sugerido else "null" }}}
       {{- "," if not loop.last -}}
     {%- endfor -%}
   {%- endif -%}
@@ -265,7 +270,7 @@
     return tabla.querySelector(`tr[data-id="${id}"]`);
   }
 
-  function agregarInsumo(id, nombre, unidad, disponible, cantidad) {
+  function agregarInsumo(id, nombre, unidad, disponible, cantidad, sugerido) {
     const existente = yaEsta(tablaInsumos, id);
     if (existente) {
       const campo = existente.querySelector("input[name='insumo_cantidad[]']");
@@ -283,7 +288,13 @@
       </td>
       <td class="text-end">
         <input type="number" name="insumo_cantidad[]" class="form-control form-control-sm text-end"
-               min="1" value="${cantidad}" style="width:6rem; display:inline-block">
+               min="1" value="${cantidad}" style="width:5.5rem; display:inline-block">
+      </td>
+      <td class="text-end">
+        <input type="number" name="insumo_sugerido[]" class="form-control form-control-sm text-end"
+               min="0" step="0.01" value="${sugerido || ""}" placeholder="—"
+               style="width:7rem; display:inline-block"
+               aria-label="Precio propuesto para ${nombre}">
       </td>
       <td class="text-end" data-disponible>${disponible}</td>
       <td class="text-center" data-estatus></td>
@@ -341,7 +352,7 @@
     const cantidad = parseInt(document.getElementById("cantidadInsumo").value, 10);
     if (!cantidad || cantidad < 1) return alert("Indica una cantidad de al menos 1.");
     agregarInsumo(opcion.value, opcion.dataset.nombre, opcion.dataset.unidad,
-                  parseInt(opcion.dataset.disponible, 10), cantidad);
+                  parseInt(opcion.dataset.disponible, 10), cantidad, null);
     document.getElementById("cantidadInsumo").value = 1;
   });
 
@@ -390,7 +401,7 @@
                       dato.estado, dato.disponible);
       } else {
         agregarInsumo(dato.id, dato.descripcion, dato.unidad,
-                      dato.stock_disponible, 1);
+                      dato.stock_disponible, 1, null);
       }
     } catch (e) {
       alert("No se pudo consultar el codigo. Revisa la conexion.");
@@ -403,7 +414,8 @@
     if (r.tipo === "insumo") {
       const o = document.querySelector(`#selectInsumo option[value="${r.id}"]`);
       if (o) agregarInsumo(r.id, o.dataset.nombre, o.dataset.unidad,
-                           parseInt(o.dataset.disponible, 10), r.cantidad);
+                           parseInt(o.dataset.disponible, 10), r.cantidad,
+                           r.sugerido);
     } else {
       const o = document.querySelector(`#selectEquipo option[value="${r.id}"]`);
       if (o) agregarEquipo(r.id, o.dataset.nombre, o.dataset.serie,

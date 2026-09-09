@@ -114,6 +114,7 @@
             <th class="text-center" style="width:7rem">Tipo</th>
             <th class="text-end" style="width:6rem">Pedido</th>
             <th class="text-end" style="width:7rem">Disponible</th>
+            <th class="text-end" style="width:8rem">Propuesto</th>
             <th class="text-end" style="width:9rem">Precio unitario</th>
             <th class="text-end" style="width:8rem">Importe</th>
             <th class="text-center" style="width:10rem">Estatus</th>
@@ -132,9 +133,21 @@
               <td class="text-end">{{ fila.cantidad }}</td>
               <td class="text-end">{{ fila.disponible }}</td>
               <td class="text-end">
+                {% if d.precio_sugerido %}
+                  <span class="badge text-bg-{{ 'warning' if d.sugerencia_pendiente else 'light' }}"
+                        title="Lo que propuso el vendedor">
+                    ${{ '{:,.2f}'.format(d.precio_sugerido) }}
+                  </span>
+                {% else %}
+                  <span class="text-muted">&mdash;</span>
+                {% endif %}
+              </td>
+              <td class="text-end">
                 {% if editable %}
+                  {# Precargado con lo propuesto: el revisor solo confirma. #}
                   <input type="number" step="0.01" min="0" class="form-control form-control-sm text-end"
-                         name="precio_{{ d.id }}" value="{{ '%.2f'|format(d.precio_unitario or 0) }}"
+                         name="precio_{{ d.id }}"
+                         value="{{ '%.2f'|format(d.precio_a_confirmar) }}"
                          aria-label="Precio de {{ fila.descripcion }}">
                 {% else %}
                   ${{ '{:,.2f}'.format(d.precio_unitario or 0) }}
@@ -152,7 +165,7 @@
               </td>
             </tr>
           {% else %}
-            <tr><td colspan="7" class="text-muted text-center py-3">La nota no tiene renglones.</td></tr>
+            <tr><td colspan="8" class="text-muted text-center py-3">La nota no tiene renglones.</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -162,7 +175,8 @@
       <div class="d-flex justify-content-between align-items-center mt-3">
         <div class="form-text mb-0">
           Los insumos no tienen precio de lista: se captura el que se negocio.
-          El equipo trae la tarifa de este hospital y tambien se puede corregir.
+          Si el vendedor propuso uno, ya viene precargado; confirmalo o
+          corrigelo. El equipo trae la tarifa de este hospital.
         </div>
         <button class="btn btn-outline-primary" type="submit">
           <i class="fas fa-floppy-disk me-1"></i> Guardar precios

@@ -160,11 +160,31 @@ class DetalleNotaVenta(db.Model):
     # y con lo que se cobro.
     descripcion_snapshot = db.Column(db.String(200))
     unidad_snapshot = db.Column(db.String(30))
+
+    # El precio que vale: lo fija el revisor.
     precio_unitario = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+
+    # Lo que el vendedor negocio con el hospital. Es opcional y no cobra nada
+    # por si solo: sirve para que el revisor no tenga que preguntar. Nulo
+    # significa que el vendedor no propuso nada, que es distinto de proponer
+    # cero.
+    precio_sugerido = db.Column(db.Numeric(12, 2))
 
     @property
     def importe(self):
         return (self.precio_unitario or Decimal(0)) * self.cantidad
+
+    @property
+    def precio_a_confirmar(self):
+        """Lo que se le muestra al revisor: su precio, o el que propusieron."""
+        if self.precio_unitario:
+            return self.precio_unitario
+        return self.precio_sugerido or Decimal(0)
+
+    @property
+    def sugerencia_pendiente(self):
+        """El vendedor propuso algo y el revisor todavia no lo confirma."""
+        return bool(self.precio_sugerido) and not self.precio_unitario
 
     @property
     def item(self):

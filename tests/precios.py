@@ -209,6 +209,94 @@ with app.app_context():
         check("cambiar precios tras aprobar se bloquea",
               "mientras la nota esta en revision" in str(e), True)
 
+
+# --- El vendedor propone, el revisor confirma (opcional) --------------------
+
+print("\nEl precio propuesto es opcional:")
+with app.test_client() as c:
+    c.post("/auth/login", data={"email": "v@a.mx", "password": "avant123"},
+           follow_redirects=True)
+
+    base = {
+        "hospital_id": ang_id,
+        "direccion_entrega": "Quirofano 3",
+        "fecha_requerida": "2026-11-01",
+        "insumo_id[]": str(ins_id), "insumo_cantidad[]": "2",
+    }
+
+    # Sin proponer nada: la nota se crea igual.
+    r = c.post("/notas/nueva", data=dict(base), follow_redirects=True)
+    check("nota sin propuesta se crea", r.status_code, 200)
+
+    # Proponiendo un precio.
+    con_propuesta = dict(base)
+    con_propuesta["insumo_sugerido[]"] = "150.75"
+    r = c.post("/notas/nueva", data=con_propuesta, follow_redirects=True)
+    check("nota con propuesta se crea", r.status_code, 200)
+
+    with app.app_context():
+        from app.models import NotaVenta
+        notas = NotaVenta.query.order_by(NotaVenta.id).all()
+        sin_prop = notas[-2]
+        con_prop = notas[-1]
+        det_sin = sin_prop.detalles[0]
+        det_con = con_prop.detalles[0]
+
+        check("sin propuesta queda nulo", det_sin.precio_sugerido, None)
+        check("con propuesta se guarda", float(det_con.precio_sugerido), 150.75)
+        # Proponer no cobra: el precio que vale sigue en cero.
+        check("proponer no fija el precio", float(det_con.precio_unitario), 0.0)
+        check("la sugerencia esta pendiente", det_con.sugerencia_pendiente, True)
+        check("y se le muestra al revisor precargada",
+              float(det_con.precio_a_confirmar), 150.75)
+        check("sin propuesta no precarga nada",
+              float(det_sin.precio_a_confirmar), 0.0)
+        con_prop_id, det_con_id = con_prop.id, det_con.id
+
+    # Un texto invalido en la propuesta se rechaza sin perder la captura.
+    malo = dict(base)
+    malo["insumo_sugerido[]"] = "como cien"
+    r = c.post("/notas/nueva", data=malo, follow_redirects=True)
+    check("propuesta no numerica se rechaza",
+          "no es un precio valido" in r.get_data(as_text=True), True)
+
+    negativo = dict(base)
+    negativo["insumo_sugerido[]"] = "-10"
+    r = c.post("/notas/nueva", data=negativo, follow_redirects=True)
+    check("propuesta negativa se rechaza",
+          "no pueden ser negativos" in r.get_data(as_text=True), True)
+
+print("\nEl revisor confirma la propuesta:")
+with app.test_client() as c:
+    c.post("/auth/login", data={"email": "a@a.mx", "password": "avant123"},
+           follow_redirects=True)
+
+    r = c.get(f"/revision/{con_prop_id}")
+    texto = r.get_data(as_text=True)
+    check("la pantalla muestra lo propuesto", "150.75" in texto, True)
+
+    # Confirmar es guardar el valor precargado.
+    r = c.post(f"/revision/{con_prop_id}/precios",
+               data={f"precio_{det_con_id}": "150.75"}, follow_redirects=True)
+    with app.app_context():
+        from app.models import DetalleNotaVenta
+        det = db.session.get(DetalleNotaVenta, det_con_id)
+        check("precio confirmado", float(det.precio_unitario), 150.75)
+        check("ya no esta pendiente", det.sugerencia_pendiente, False)
+        check("la propuesta se conserva como historia",
+              float(det.precio_sugerido), 150.75)
+
+    # El revisor puede no estar de acuerdo.
+    c.post(f"/revision/{con_prop_id}/precios",
+           data={f"precio_{det_con_id}": "120.00"}, follow_redirects=True)
+    with app.app_context():
+        from app.models import DetalleNotaVenta
+        det = db.session.get(DetalleNotaVenta, det_con_id)
+        check("el revisor puede corregir a la baja",
+              float(det.precio_unitario), 120.0)
+        check("y se ve que el vendedor habia propuesto otra cosa",
+              float(det.precio_sugerido), 150.75)
+
 print("\n" + "=" * 50)
 if fallos:
     print(f"{len(fallos)} FALLOS:")

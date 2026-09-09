@@ -300,10 +300,10 @@ El vendedor levanta la nota **sin precios de insumo**. El revisor los captura al
 revisarla, antes de aprobar. Una vez aprobada quedan congelados: el inventario
 ya está comprometido y los documentos emitidos deben cuadrar.
 
-**Consecuencia a vigilar:** el vendedor no puede decirle un monto al hospital en
-el momento de levantar la nota. Si en la práctica él negocia y necesita dejarlo
-asentado, la variante sería "el vendedor propone, el revisor confirma" — un
-campo más, no un rediseño.
+**El vendedor puede proponer un precio** en un campo opcional al levantar la
+nota. No cobra nada por sí solo: el revisor lo ve precargado y lo confirma o lo
+corrige. Si el vendedor no propone nada, el flujo es idéntico. La propuesta se
+conserva aunque el revisor la cambie, así queda constancia de la diferencia.
 
 Para cambiar una tarifa no se edita la existente: se agrega una nueva con la
 fecha desde la que aplica. Las notas ya capturadas conservan su importe porque
