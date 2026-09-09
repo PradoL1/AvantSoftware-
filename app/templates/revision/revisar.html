@@ -151,6 +151,57 @@
   {% endif %}
 </div>
 
+{# --- Remisiones emitidas --- #}
+{% if nota.remisiones %}
+  <div class="card p-4 mb-3">
+    <h5 class="mb-3 border-bottom pb-2">
+      <i class="fas fa-receipt text-primary me-2"></i> Remisiones emitidas
+    </h5>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Folio</th>
+            <th style="width:8rem">Tipo</th>
+            <th style="width:12rem">Generada</th>
+            <th class="text-end" style="width:8rem">Total</th>
+            <th class="text-center" style="width:10rem"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in nota.remisiones %}
+            <tr class="{{ 'text-muted' if r.cancelada }}">
+              <td class="fw-semibold">{{ r.folio }}</td>
+              <td>
+                <span class="badge text-bg-secondary">
+                  {{ TipoRemision.ETIQUETAS[r.tipo] }}
+                </span>
+              </td>
+              <td class="small">{{ r.fecha_generacion.strftime('%d/%m/%Y %H:%M') }}</td>
+              <td class="text-end">${{ '{:,.2f}'.format(r.total or 0) }}</td>
+              <td class="text-center">
+                {% if r.cancelada %}
+                  <span class="badge text-bg-dark">Cancelada</span>
+                {% else %}
+                  <a class="btn btn-sm btn-outline-primary"
+                     href="{{ url_for('revision.descargar_remision', remision_id=r.id) }}"
+                     target="_blank">
+                    <i class="fas fa-file-pdf me-1"></i> PDF
+                  </a>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="form-text mb-0">
+      Paciente, habitacion, episodio y aseguradora van en blanco a proposito: se
+      llenan a mano en el hospital, como en el formato anterior.
+    </p>
+  </div>
+{% endif %}
+
 {# --- Acciones --- #}
 {% if nota.estado == EstadoNota.PENDIENTE_REVISION %}
   <div class="card p-4 mb-5">

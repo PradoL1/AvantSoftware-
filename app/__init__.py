@@ -7,7 +7,8 @@ distintas.
 
 from flask import Flask, render_template
 
-from app.constantes import EstadoEquipo, EstadoNota, Rol, TipoItem
+from app.constantes import (EstadoEquipo, EstadoNota, Rol, TipoItem,
+                            TipoRemision)
 from app.extensions import csrf, db, login_manager, migrate
 from config import config_por_nombre
 
@@ -87,4 +88,5 @@ def _registrar_contexto_plantillas(app):
         EstadoNota=EstadoNota,
         EstadoEquipo=EstadoEquipo,
         TipoItem=TipoItem,
+        TipoRemision=TipoRemision,
     )

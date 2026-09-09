@@ -1,11 +1,16 @@
 """Revision de notas y generacion de remisiones (rol revisor_admin)."""
 
-from flask import flash, redirect, render_template, request, url_for
+from io import BytesIO
+
+from flask import (current_app, flash, redirect, render_template, request,
+                   send_file, url_for)
 from flask_login import current_user, login_required
 
 from app.blueprints.revision import bp
 from app.constantes import EstadoNota, Rol
-from app.models import NotaVenta
+from app.models import NotaVenta, Remision
+from app.servicios.remisiones import (ErrorDeRemision, generar_remisiones,
+                                      regenerar_pdf)
 from app.servicios.revision import (ErrorDeRevision, aprobar, cancelar,
                                     hay_faltantes, rechazar,
                                     revisar_disponibilidad)
@@ -92,14 +97,47 @@ def cancelar_nota(nota_id):
     return redirect(url_for("revision.revisar", nota_id=nota_id))
 
 
-# --- Por implementar -------------------------------------------------------
-
-
 @bp.route("/<int:nota_id>/remision", methods=["POST"])
 @login_required
 @rol_requerido(Rol.REVISOR_ADMIN)
 def generar_remision(nota_id):
-    # TODO: crear las dos remisiones (insumos y equipos), generar el PDF con
-    # ReportLab y guardarlo en config PDF_REMISIONES_DIR.
-    flash("La generacion de remisiones esta por implementarse.", "info")
+    nota = NotaVenta.query.get_or_404(nota_id)
+    try:
+        creadas = generar_remisiones(nota, current_user)
+    except ErrorDeRemision as e:
+        flash(str(e), "danger")
+    else:
+        if creadas:
+            folios = ", ".join(r.folio for r in creadas)
+            flash(f"Remisiones generadas: {folios}.", "success")
+        else:
+            flash("La nota ya tenia todas sus remisiones.", "info")
     return redirect(url_for("revision.revisar", nota_id=nota_id))
+
+
+@bp.route("/remision/<int:remision_id>.pdf")
+@login_required
+@rol_requerido(Rol.REVISOR_ADMIN, Rol.TECNICO)
+def descargar_remision(remision_id):
+    """Descarga o reimprime la remision. Si el PDF falta, se regenera."""
+    remision = Remision.query.get_or_404(remision_id)
+    carpeta = current_app.config["PDF_REMISIONES_DIR"]
+    ruta = carpeta / (remision.pdf_path or f"{remision.folio}.pdf")
+
+    if not ruta.exists():
+        try:
+            ruta = regenerar_pdf(remision)
+        except Exception as e:  # noqa: BLE001
+            flash(f"No se pudo generar el PDF: {e}", "danger")
+            return redirect(
+                url_for("revision.revisar", nota_id=remision.nota_venta_id)
+            )
+
+    # Se sirve desde memoria y no con la ruta: en Windows send_file deja el
+    # archivo abierto y una reimpresion posterior no podria sobrescribirlo.
+    # Las remisiones pesan unos pocos KB, asi que no compensa arriesgarlo.
+    return send_file(
+        BytesIO(ruta.read_bytes()),
+        mimetype="application/pdf",
+        download_name=f"{remision.folio}.pdf",
+    )

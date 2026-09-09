@@ -94,23 +94,28 @@ apartado de inventario repartido entre almacenes, rechazo con motivo obligatorio
 y cancelación que devuelve lo apartado. Cada operación escribe el kardex y es
 todo o nada: si un renglón falla, no se aparta ninguno.
 
+**Remisiones en PDF**: una nota emite hasta dos (insumos y equipos), con folio
+propio, razón social y RFC congelados al emitir, totales con IVA, el recuadro
+punteado que se llena a mano en el hospital y las tres firmas. Se guardan en
+`app/static/pdf/remisiones/` y se regeneran solas si el archivo falta.
+
 ```powershell
 python tests\pantallas.py   # renderiza cada pantalla con cada rol
 python tests\reglas.py      # reglas de negocio y cálculos
 python tests\notas.py       # alta y edición de notas, extremo a extremo
 python tests\revision.py    # aprobación, rechazo, apartado y kardex
+python tests\remisiones.py  # emisión, datos fiscales y PDF
 ```
 
 **Falta (marcado con `TODO` en el código):**
 
-1. Generación del PDF de remisión (ReportLab).
-2. Checklist de doble verificación, entrega y regreso de equipo.
-3. Carta responsiva de custodia (modelo listo, falta el documento).
-4. Kardex de la salida física, la entrega y el cierre (el del apartado y la
+1. Checklist de doble verificación, entrega y regreso de equipo.
+2. Carta responsiva de custodia (modelo listo, falta el documento).
+3. Kardex de la salida física, la entrega y el cierre (el del apartado y la
    liberación ya se escribe).
-5. ABC de usuarios y catálogos (el formulario `UsuarioForm` ya está hecho).
-6. Impresión de etiquetas con JsBarcode (medidas ya conocidas, ver abajo).
-7. Reportes, trazabilidad y planificación de demanda.
+4. ABC de usuarios y catálogos (el formulario `UsuarioForm` ya está hecho).
+5. Impresión de etiquetas con JsBarcode (medidas ya conocidas, ver abajo).
+6. Reportes, trazabilidad y planificación de demanda.
 
 ## Pendientes técnicos
 
