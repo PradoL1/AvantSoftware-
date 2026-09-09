@@ -89,22 +89,28 @@ código de barras, aviso de stock insuficiente, precio congelado al guardar seg�
 el hospital, y aislamiento entre vendedores (un vendedor recibe 403 en la nota
 de otro).
 
+**Revisión**: verificación de disponibilidad renglón por renglón, aprobación con
+apartado de inventario repartido entre almacenes, rechazo con motivo obligatorio
+y cancelación que devuelve lo apartado. Cada operación escribe el kardex y es
+todo o nada: si un renglón falla, no se aparta ninguno.
+
 ```powershell
 python tests\pantallas.py   # renderiza cada pantalla con cada rol
 python tests\reglas.py      # reglas de negocio y cálculos
 python tests\notas.py       # alta y edición de notas, extremo a extremo
+python tests\revision.py    # aprobación, rechazo, apartado y kardex
 ```
 
 **Falta (marcado con `TODO` en el código):**
 
-1. Verificación de disponibilidad + aprobación/rechazo, con apartado de stock.
-2. Generación del PDF de remisión (ReportLab).
-3. Checklist de doble verificación, entrega y regreso de equipo.
-4. Carta responsiva de custodia (modelo listo, falta el documento).
-5. Escritura del kardex en cada transición de estado.
-6. ABC de usuarios y catálogos (el formulario `UsuarioForm` ya está hecho).
-7. Impresión de etiquetas con JsBarcode (medidas ya conocidas, ver abajo).
-8. Reportes, trazabilidad y planificación de demanda.
+1. Generación del PDF de remisión (ReportLab).
+2. Checklist de doble verificación, entrega y regreso de equipo.
+3. Carta responsiva de custodia (modelo listo, falta el documento).
+4. Kardex de la salida física, la entrega y el cierre (el del apartado y la
+   liberación ya se escribe).
+5. ABC de usuarios y catálogos (el formulario `UsuarioForm` ya está hecho).
+6. Impresión de etiquetas con JsBarcode (medidas ya conocidas, ver abajo).
+7. Reportes, trazabilidad y planificación de demanda.
 
 ## Pendientes técnicos
 
@@ -112,9 +118,14 @@ python tests\notas.py       # alta y edición de notas, extremo a extremo
   `servicios/notas.py` reintenta hasta 5 veces cuando el `UNIQUE` choca, que es
   suficiente para 11 usuarios. Con mucha más concurrencia habría que pasar a una
   secuencia de PostgreSQL.
-- **Capa de servicios:** `app/servicios/notas.py` ya concentra el alta y la
-  edición. Las transiciones que faltan (aprobar, apartar, entregar, cerrar)
-  deben ir ahí también, una transacción por operación.
+- **Capa de servicios:** `servicios/notas.py` (alta y edición),
+  `servicios/inventario.py` (apartar, liberar y kardex) y `servicios/revision.py`
+  (aprobar, rechazar, cancelar). Las transiciones que faltan — salida física,
+  entrega y cierre — van ahí también, una transacción por operación.
+- **Apartado sin bloqueo de fila:** dos revisores aprobando a la vez podrían
+  comprometer el mismo stock. `aprobar()` revalida y revierte completo, pero no
+  toma un lock. Con 3 revisores es tolerable; en PostgreSQL se resuelve con
+  `SELECT ... FOR UPDATE` sobre las existencias.
 - **WeasyPrint:** daría PDFs más bonitos reusando el HTML de las plantillas,
   pero en Windows necesita GTK instalado aparte. Por eso `requirements.txt`
   trae ReportLab. Si se instala GTK, se puede cambiar el generador.
@@ -126,9 +137,9 @@ python tests\notas.py       # alta y edición de notas, extremo a extremo
 Siguen abiertas varias de [CONTEXTO_PROYECTO.md](CONTEXTO_PROYECTO.md)
 §9. Estas afectan el código pronto:
 
-- Qué pasa al cancelar una nota aprobada con remisión generada. El modelo ya
-  tiene `Remision.cancelada` previendo que se anule, pero la regla no está
-  definida.
+- Qué pasa al cancelar una nota aprobada con remisión generada. Hoy `cancelar()`
+  libera el inventario y marca la remisión como cancelada, pero la regla real
+  (¿se anula? ¿se emite una nota de crédito?) sigue sin definirse.
 - Qué hacer con el equipo que se pasa de la fecha de renta: no hay alerta ni
   vigencia máxima definida.
 - Quién marca un equipo en mantenimiento y dónde se registra el historial de
