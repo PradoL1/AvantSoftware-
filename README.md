@@ -9,11 +9,12 @@ levantar y trabajar el proyecto.
 
 ## Requisitos
 
-- **Python 3.11 o 3.12** — descargar de [python.org](https://www.python.org/downloads/windows/)
-  y marcar **"Add python.exe to PATH"** durante la instalación.
-  (El `python` que trae Windows por defecto es solo un acceso directo a la
-  Microsoft Store y no sirve.)
-- Git (ya instalado).
+- **Python 3.14** (probado con 3.14.7). Ya instalado en la maquina de Luis en
+  `%LOCALAPPDATA%\Programs\Python\Python314`.
+- Git.
+
+> Si la terminal responde que no encuentra Python, es porque su PATH es
+> anterior a la instalacion: cierra y vuelve a abrir la terminal.
 
 ## Puesta en marcha
 
@@ -75,10 +76,17 @@ app/
 
 ## Qué ya funciona y qué falta
 
-**Funciona:** login con roles, tablero por rol, listado y detalle de notas,
-bandejas de revisión y logística, catálogo de equipo e insumos, API
-`/catalogo/api/codigo` para resolver un código de barras escaneado, páginas de
-error, comandos de terminal.
+**Verificado ejecutando la app** (no solo escrito): login con roles, tablero por
+rol con indicadores, listado y detalle de notas, bandejas de revisión y
+logística, catálogo de equipo e insumos, API `/catalogo/api/codigo`, páginas de
+error, permisos por rol (un vendedor recibe 403 en revisión), CSRF activo, y las
+reglas de negocio del sistema anterior (razón social por hospital, dos listas de
+precios, IVA, stock repartido en almacenes, transiciones de estado).
+
+```powershell
+python tests\pantallas.py   # renderiza cada pantalla con cada rol
+python tests\reglas.py      # reglas de negocio y cálculos
+```
 
 **Falta (marcado con `TODO` en el código):**
 
@@ -86,10 +94,11 @@ error, comandos de terminal.
 2. Verificación de disponibilidad + aprobación/rechazo, con apartado de stock.
 3. Generación del PDF de remisión (ReportLab).
 4. Checklist de doble verificación, entrega y regreso de equipo.
-5. Escritura del historial de movimientos en cada transición de estado.
-6. ABC de usuarios y catálogos (el formulario `UsuarioForm` ya está hecho).
-7. Impresión de etiquetas con JsBarcode.
-8. Reportes y trazabilidad.
+5. Carta responsiva de custodia (modelo listo, falta el documento).
+6. Escritura del kardex en cada transición de estado.
+7. ABC de usuarios y catálogos (el formulario `UsuarioForm` ya está hecho).
+8. Impresión de etiquetas con JsBarcode (medidas ya conocidas, ver abajo).
+9. Reportes, trazabilidad y planificación de demanda.
 
 ## Pendientes técnicos
 
@@ -139,3 +148,68 @@ FontAwesome 6.4.
 **Diferencia deliberada:** el sistema anterior no era responsive (barra lateral
 fija de 260px, botón de menú oculto). Como el técnico usa logística desde el
 celular en el hospital, la barra ahora se colapsa por debajo de 992px.
+
+## Reglas de negocio heredadas del sistema anterior
+
+Todas salieron de leer `_diseno_anterior/`, no del documento de alcance, y están
+verificadas en `tests/reglas.py`.
+
+**Dos razones sociales.** Si el hospital contiene "ÁNGELES" factura *AVANT
+SOLUCIONES MEDICAS* (RFC MPB210816298); si no, *AVANT GARDE MEDIC SERVICE* (RFC
+AGM210811HD9). La regla vive en `Empresa.para_hospital()`, y decide también qué
+lista de precios aplica. En el sistema anterior estaba repetida en dos plantillas.
+
+**Dos listas de precios por insumo:** `precio_angeles` y `precio_otros`.
+
+**IVA 16%**, en `constantes.IVA`. Antes estaba escrito a mano en el JavaScript
+de la remisión.
+
+**Cuatro almacenes:** Central, Operaciones, Resteril y Transición. El stock de un
+insumo ya no es un número sino un reparto (tabla `existencias`), y
+`insumo.stock_actual` los suma. `flask sembrar-almacenes` los crea.
+
+**Dos remisiones por nota**, una de insumos y otra de equipos (`Remision.tipo`).
+
+**Carta responsiva** (`responsivas`): contrato de custodia donde el receptor
+acepta cubrir el valor de reposición del equipo. Se congela el MOI del activo al
+firmar, porque es un documento con efecto legal que debe poder reimprimirse
+igual años después.
+
+**Kardex con saldos** (`historial_movimientos`): cada renglón guarda saldo
+anterior y nuevo, costo, proveedor y fecha de pago. Diferencia deliberada: el
+sistema anterior permitía *borrar y revertir* movimientos; aquí una corrección
+es un movimiento de ajuste nuevo, para que la historia no se pueda reescribir.
+
+### Datos útiles ya extraídos
+
+- **Etiquetas de código de barras:** hoja carta, márgenes 10mm × 8mm, rejilla de
+  6 × 2 (12 por planilla), cada etiqueta 64mm × 32mm, CODE128, barras de 18mm.
+  Para hojas TUK Stik A20.
+- **Checklist de salida** — accesorios: Cable de Poder, Pedal Doble/Sencillo,
+  Fibra Óptica, Fuente de Luz, Maletín Rígido, Pieza de Mano/Camisa.
+  Inspección: Chasis Limpio/Intacto, Ópticas Sin Rayaduras, Conectores Íntegros,
+  Prueba de Encendido OK. Todo en `constantes.Checklist`.
+- **Firmas de la remisión:** médico, enfermería y técnico.
+
+## Alcance: este sistema reemplaza al anterior
+
+Decisión tomada. Implica que el proyecto es mayor que el del documento original:
+precios, IVA, dos razones sociales, cuatro almacenes, carta responsiva y kardex
+financiero **no están en CONTEXTO_PROYECTO.md**. El esquema ya los contempla,
+pero las pantallas no existen.
+
+**Las 8–10.5 semanas del §10 ya no aplican.** Hay que reestimar con el jefe antes
+de comprometer fechas.
+
+Además, el sistema anterior tiene módulos completos que aquí todavía no existen:
+planificación de demanda (ROP, stock de seguridad, lead time), costeo por capas,
+cuentas por pagar a proveedores y exportación a Excel.
+
+### Lo que no se copió, a propósito
+
+- PINs y claves en el código (`PIN_JEFE = "1234"` estaba en el HTML).
+- `session.get('rol', 'admin')`: sin sesión, el sistema anterior te trata como
+  administrador.
+- Checklist guardado en `localStorage` del navegador del técnico.
+- Catálogo de equipos leído desde Google Sheets.
+- Borrado de movimientos del kardex.

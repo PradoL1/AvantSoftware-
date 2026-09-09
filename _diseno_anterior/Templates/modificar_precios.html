@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modificación de Precios - Inventarios AVANT</title>
+    
+    <!-- Bootstrap 5 & FontAwesome -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        body { background: #f8f9fa; margin: 0; padding: 0; overflow-x: hidden; }
+        .dashboard-layout { display: flex; min-height: 100vh; width: 100vw; position: relative; }
+        
+        /* Área del Contenido con Marca de Agua AVANT */
+        .main-wrapper {
+            flex-grow: 1;
+            position: relative;
+            background-color: #f8f9fa;
+            min-height: 100vh;
+            margin-left: 260px;
+        }
+
+        .watermark-bg {
+            position: fixed;
+            top: 0; left: 260px; right: 0; bottom: 0;
+            background-image: url("{{ url_for('static', filename='logo_avant.png') }}");
+            background-repeat: no-repeat;
+            background-position: center center;
+            background-size: 420px auto;
+            opacity: 0.06;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .main-content { position: relative; z-index: 10; padding: 1.5rem 2rem; }
+        .card { border-radius: 12px; box-shadow: 0 8px 20px rgba(15,23,42,0.06); border: none; }
+        
+        /* Estilos Sidebar Compartida */
+        .dashboard-layout .avant-shared-sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 260px; background: linear-gradient(180deg, #111827 0%, #0f172a 100%); color: #fff; padding: 1rem .8rem; z-index: 1000; }
+        .dashboard-layout .avant-shared-sidebar .nav-link { display: flex; align-items: center; gap: .7rem; color: rgba(255,255,255,.8); text-decoration: none; padding: .6rem .8rem; border-radius: 8px; margin-bottom: .2rem; }
+        .dashboard-layout .avant-shared-sidebar .nav-link:hover, .dashboard-layout .avant-shared-sidebar .nav-link.active { background-color: rgba(96,165,250,.18); color: white; }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-layout">
+        
+        <!-- SIDEBAR -->
+        {% include '_sidebar.html' %}
+
+        <!-- CONTENIDO PRINCIPAL -->
+        <div class="main-wrapper">
+            <div class="watermark-bg"></div>
+
+            <main class="main-content">
+                
+                <!-- ENCABEZADO -->
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <div class="text-uppercase small text-muted fw-semibold">Gestión de Catálogo</div>
+                        <h2 class="mb-0">🏷️ Control y Modificación de Precios</h2>
+                    </div>
+                </div>
+
+                <!-- MENSAJES DE NOTIFICACIÓN (FLASH) -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                  {% if messages %}
+                    {% for category, message in messages %}
+                      <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="¡Claro que sí! Aquí tienes la guía de **dónde poner cada archivo** y todo el **código completo y listo** para que puedas modificar precios.
+
+---
+
+### 📂 ¿Dónde va cada archivo?
+
+1. **El archivo HTML (`modificar_precios.html`):**
+   * **¿Dónde guardarlo?** En tu carpeta **`templates/`**.
+   * *Ruta:* `templates/modificar_precios.html`
+
+2. **El código de Python (`app.py` o tu archivo principal):**
+   * **¿Dónde ponerlo?** En tu archivo de Python donde tienes tus rutas de Flask (normalmente `app.py`, `main.py` o `routes.py`).
+
+---
+
+### 1️⃣ Archivo HTML: `templates/modificar_precios.html`
+
+Crea este archivo dentro de la carpeta **`templates/`**. Ya incluye la estructura base, la marca de agua de AVANT, la barra lateral `_sidebar.html` y la tabla con los modales para cambiar precios.
+
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modificar Precios - Inventarios AVANT</title>
+    
+    <!-- Bootstrap 5 & FontAwesome -->
+    <link href="[https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css](https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css)" rel="stylesheet">
+    <link rel="stylesheet" href="[https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css](https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css)">
+
+    <style>
+        body { background: #f8f9fa; margin: 0; padding: 0; overflow-x: hidden; }
+        .dashboard-layout { display: flex; min-height: 100vh; width: 100vw; position: relative; }
+        
+        .main-wrapper {
+            flex-grow: 1;
+            position: relative;
+            background-color: #f8f9fa;
+            min-height: 100vh;
+            margin-left: 260px;
+        }
+
+        /* Capa de marca de agua AVANT */
+        .watermark-bg {
+            position: fixed;
+            top: 0; left: 260px; right: 0; bottom: 0;
+            background-image: url("{{ url_for('static', filename='logo_avant.png') }}");
+            background-repeat: no-repeat;
+            background-position: center center;
+            background-size: 420px auto;
+            opacity: 0.06;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .main-content { position: relative; z-index: 10; padding: 1.5rem 2rem; }
+        .card { border-radius: 12px; box-shadow: 0 8px 20px rgba(15,23,42,0.06); border: none; }
+        
+        .dashboard-layout .avant-shared-sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 260px; background: linear-gradient(180deg, #111827 0%, #0f172a 100%); color: #fff; padding: 1rem .8rem; z-index: 1000; }
+        .dashboard-layout .avant-shared-sidebar .brand { display: flex; align-items: center; margin-bottom: 1rem; }
+        .dashboard-layout .avant-shared-sidebar .sidebar-toggle-btn { display: none; }
+        .dashboard-layout .avant-shared-sidebar .nav-link { display: flex; align-items: center; gap: .7rem; color: rgba(255,255,255,.8); text-decoration: none; padding: .6rem .8rem; border-radius: 8px; margin-bottom: .2rem; }
+        .dashboard-layout .avant-shared-sidebar .nav-link:hover, .dashboard-layout .avant-shared-sidebar .nav-link.active { background-color: rgba(96,165,250,.18); color: white; }
+        .dashboard-layout .avant-shared-sidebar .nav-link i { width: 18px; text-align: center; }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-layout">
+        
+        <!-- BARRA LATERAL -->
+        {% include '_sidebar.html' %}
+
+        <!-- ÁREA PRINCIPAL -->
+        <div class="main-wrapper">
+            <div class="watermark-bg"></div>
+
+            <main class="main-content">
+                
+                <!-- ENCABEZADO -->
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <div class="text-uppercase small text-muted fw-semibold">Gestión de Productos</div>
+                        <h2 class="mb-0">🏷️ Actualización de Precios</h2>
+                    </div>
+                </div>
+
+                <!-- MENSAJES FLASH / ALERTAS DE ÉXITO -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                  {% if messages %}
+                    {% for category, message in messages %}
+                      <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        <i class="fas fa-check-circle me-2"></i> {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                      </div>
+                    {% endfor %}
+                  {% endif %}
+                {% endwith %}
+
+                <!-- TABLA DE PRODUCTOS -->
+                <div class="card p-4 mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                        <h5 class="mb-0 text-primary"><i class="fas fa-boxes me-2"></i> Lista de Productos e Inventario</h5>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover table-bordered mb-0 align-middle style-sm" style="font-size: 0.9rem;">
+                           <!-- En la cabecera de la tabla -->
+<thead class="table-light">
+    <tr>
+        <th style="width: 80px;">ID / SKU</th>
+        <th>Producto</th>
+        <th>Precio Gto. Ángeles</th>
+        <th>Precio Otros Hosp.</th>
+        <th class="text-center" style="width: 180px;">Acción</th>
+    </tr>
+</thead>
+<tbody>
+    {% for producto in productos %}
+    <tr>
+        <td class="fw-bold text-primary">#{{ producto.sku }}</td>
+        <td>{{ producto.nombre }}</td>
+        <td class="fw-bold text-success">${{ "%.2f"|format(producto.precio_angeles) }}</td>
+        <td class="fw-bold text-info">${{ "%.2f"|format(producto.precio_otros) }}</td>
+        <td class="text-center">
+            <!-- BOTÓN MODAL -->
+            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalPrecios{{ producto.id }}">
+                <i class="fas fa-edit me-1"></i> Modificar Precios
+            </button>
+
+            <!-- MODAL CON LOS DOS CAMPOS -->
+            <div class="modal fade" id="modalPrecios{{ producto.id }}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content text-start">
+                        <div class="modal-header bg-light">
+                            <h5 class="modal-title fs-6">Precios: {{ producto.nombre }}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <form action="{{ url_for('actualizar_precios_hospitales', id=producto.id) }}" method="POST">
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold text-success">Precio Grupo Ángeles ($)</label>
+                                    <input type="number" step="0.01" min="0" class="form-control" name="precio_angeles" value="{{ producto.precio_angeles }}" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold text-info">Precio Otros Hospitales ($)</label>
+                                    <input type="number" step="0.01" min="0" class="form-control" name="precio_otros" value="{{ producto.precio_otros }}" required>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                <button type="submit" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-save me-1"></i> Guardar Precios
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </td>
+    </tr>
+    {% endfor %}
+</tbody>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- Script de Bootstrap necesario para hacer funcionar los modales -->
+    <script src="[https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js](https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js)"></script>
+</body>
+</html>

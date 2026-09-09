@@ -1,0 +1,59 @@
+<aside class="app-sidebar no-print avant-shared-sidebar">
+    <div class="brand">
+        <a href="/dashboard" class="brand-link"><i class="fas fa-feather-alt"></i><span class="brand-text">AVANT</span></a>
+        <button class="sidebar-toggle-btn ms-auto" id="sidebarToggle" type="button" aria-label="Contraer menú"><i class="fas fa-chevron-left"></i></button>
+    </div>
+    <nav class="avant-sidebar-nav" aria-label="Navegación principal">
+        <a class="nav-link {% if request.path == '/dashboard' %}active{% endif %}" href="/dashboard"><i class="fas fa-chart-line"></i><span class="nav-label">Dashboard</span></a>
+
+        {% if session.get('rol', 'admin') in ['vendedor', 'admin'] %}
+        <details {% if request.path in ['/notas-venta'] %}open{% endif %}>
+            <summary class="nav-link"><span><i class="fas fa-user-tag"></i><span class="nav-label">Vendedores</span></span><i class="fas fa-chevron-down nav-chevron"></i></summary>
+            <a class="nav-link nav-child {% if request.path == '/notas-venta' %}active{% endif %}" href="/notas-venta"><i class="fas fa-file-invoice-dollar"></i><span class="nav-label">Notas de Venta</span></a>
+        </details>
+        {% endif %}
+
+        {% if session.get('rol', 'admin') in ['inventario', 'admin'] %}
+        <details {% if request.path in ['/panel-operativo', '/kardex', '/demanda', '/remisiones'] %}open{% endif %}>
+            <summary class="nav-link"><span><i class="fas fa-boxes"></i><span class="nav-label">Inventario</span></span><i class="fas fa-chevron-down nav-chevron"></i></summary>
+            <a class="nav-link nav-child {% if request.path == '/panel-operativo' %}active{% endif %}" href="/panel-operativo"><i class="fas fa-tasks"></i><span class="nav-label">Panel Operativo</span></a>
+            <a class="nav-link nav-child {% if request.path == '/kardex' %}active{% endif %}" href="/kardex"><i class="fas fa-warehouse"></i><span class="nav-label">Kardex de Inventario</span></a>
+            <a class="nav-link nav-child {% if request.path == '/demanda' %}active{% endif %}" href="/demanda"><i class="fas fa-chart-pie"></i><span class="nav-label">Planificación de Demanda</span></a>
+            <a class="nav-link nav-child {% if request.path == '/remisiones' %}active{% endif %}" href="/remisiones"><i class="fas fa-receipt"></i><span class="nav-label">Generar Remisiones</span></a>
+        </details>
+        {% endif %}
+
+        {% if session.get('rol', 'admin') in ['tecnico', 'admin'] %}
+        <details {% if request.path == '/checklist' %}open{% endif %}>
+            <summary class="nav-link"><span><i class="fas fa-tools"></i><span class="nav-label">Técnicos</span></span><i class="fas fa-chevron-down nav-chevron"></i></summary>
+            <a class="nav-link nav-child {% if request.path == '/checklist' %}active{% endif %}" href="/checklist"><i class="fas fa-clipboard-check"></i><span class="nav-label">Checklist de Equipos</span></a>
+        </details>
+        {% endif %}
+    </nav>
+    <div class="sidebar-user">
+        <i class="fas fa-user-circle"></i>
+        <span class="nav-label">{{ session.get('usuario', 'Usuario') }}<small>{{ session.get('rol', 'ADMIN')|upper }}</small></span>
+    </div>
+</aside>
+<style>
+    .avant-shared-sidebar .brand-link { display: flex; align-items: center; gap: .7rem; color: #f8fafc; text-decoration: none; font-weight: 800; font-size: 1.2rem; }
+    .avant-shared-sidebar .brand-link i { color: #60a5fa; }
+    .avant-shared-sidebar .avant-sidebar-nav { display: flex; flex-direction: column; gap: .15rem; }
+    .avant-shared-sidebar details { margin: 0; }
+    .avant-shared-sidebar summary { list-style: none; cursor: pointer; justify-content: space-between; }
+    .avant-shared-sidebar summary::-webkit-details-marker { display: none; }
+    .avant-shared-sidebar summary > span { display: flex; align-items: center; gap: .7rem; }
+    .avant-shared-sidebar .nav-chevron { transition: transform .2s ease; width: auto; }
+    .avant-shared-sidebar details[open] .nav-chevron { transform: rotate(180deg); }
+    .avant-shared-sidebar .nav-child { margin-left: .65rem; padding-left: 1.2rem; font-size: .92rem; }
+    .avant-shared-sidebar .sidebar-user { margin-top: auto; padding: 1rem .7rem .25rem; border-top: 1px solid rgba(255,255,255,.15); display: flex; align-items: center; gap: .7rem; color: #fff; }
+    .avant-shared-sidebar .sidebar-user > i { font-size: 1.7rem; color: #60a5fa; }
+    .avant-shared-sidebar .sidebar-user small { display: block; color: #93c5fd; font-size: .68rem; text-transform: uppercase; }
+    .app-shell.sidebar-collapsed .avant-shared-sidebar .nav-child { margin-left: 0; padding-left: .9rem; }
+    .app-shell.sidebar-collapsed .avant-shared-sidebar details .nav-label { display: none; }
+</style>
+<script>
+    document.getElementById('sidebarToggle')?.addEventListener('click', function () {
+        document.getElementById('appShell')?.classList.toggle('sidebar-collapsed');
+    });
+</script>

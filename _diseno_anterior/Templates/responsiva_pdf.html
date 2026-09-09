@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Responsiva Renta - {{ d.id_activo }}</title>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    <style>
+        @page { size: letter portrait; margin: 12mm; }
+        body { font-family: Arial, sans-serif; color: #000; background: #fff; margin: 0; padding: 0; font-size: 11px; }
+        .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 12px; }
+        .header h1 { margin: 0; color: #0d6efd; font-size: 20px; }
+        .header h3 { margin: 3px 0; color: #333; font-size: 13px; font-weight: bold; }
+        .box-info { border: 1px solid #000; border-radius: 4px; padding: 8px; margin-bottom: 12px; }
+        .table-data { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+        .table-data th, .table-data td { border: 1px solid #000; padding: 5px; text-align: left; }
+        .table-data th { background-color: #f0f0f0; font-weight: bold; text-align: center; }
+        .terms { font-size: 8.5px; text-align: justify; border: 1px solid #999; padding: 6px; background-color: #f9f9f9; margin-bottom: 25px; line-height: 1.2; }
+        .signatures { display: flex; justify-content: space-around; margin-top: 40px; }
+        .sig-block { text-align: center; width: 40%; }
+        .sig-line { border-top: 1px solid #000; margin-top: 40px; font-weight: bold; font-size: 11px; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>🏥 INVENTARIOS AVANT</h1>
+    <h3>CARTA RESPONSIVA DE CUSTODIA Y CONTRATO DE RENTA DE EQUIPO MÉDICO</h3>
+    <p style="margin: 2px 0; font-size: 10px;">Documento Oficial de Control de Activos Fijos | Folio Movimiento: <strong>#{{ d.id_movimiento }}</strong></p>
+</div>
+
+<div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+    <div>
+        <p style="margin: 2px 0;"><strong>Fecha y Hora de Emisión:</strong> {{ d.fecha }}</p>
+        <p style="margin: 2px 0;"><strong>Empresa Propietaria:</strong> {{ d.empresa }}</p>
+        <p style="margin: 2px 0;"><strong>Operador Entrega:</strong> {{ d.usuario }} (IP: {{ d.ip_equipo }})</p>
+    </div>
+    <div style="text-align: right;">
+        <svg id="barcode_pdf"></svg>
+    </div>
+</div>
+
+<table class="table-data">
+    <thead>
+        <tr>
+            <th colspan="4" style="background-color: #0d6efd; color: white;">DATOS TÉCNICOS DEL ACTIVO FIJO</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td style="width: 25%;"><strong>Código / ID Activo:</strong></td>
+            <td style="width: 25%; font-weight: bold; color: #0d6efd;">{{ d.id_activo }}</td>
+            <td style="width: 25%;"><strong>Tipo de Equipo:</strong></td>
+            <td style="width: 25%;">{{ d.tipo_equipo }}</td>
+        </tr>
+        <tr>
+            <td><strong>Marca:</strong></td>
+            <td>{{ d.marca }}</td>
+            <td><strong>Modelo:</strong></td>
+            <td>{{ d.modelo }}</td>
+        </tr>
+        <tr>
+            <td><strong>Número de Serie:</strong></td>
+            <td style="font-family: monospace; font-weight: bold;">{{ d.numero_serie }}</td>
+            <td><strong>Valor de Reposición:</strong></td>
+            <td style="font-weight: bold; color: #198754;">${{ "{:,.2f}".format(d.costo) }} MXN</td>
+        </tr>
+    </tbody>
+</table>
+
+<table class="table-data">
+    <thead>
+        <tr>
+            <th colspan="2" style="background-color: #333; color: white;">DATOS DEL RECEPTOR / CLIENTE</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td style="width: 50%;"><strong>Médico / Responsable de Custodia:</strong><br><span style="font-size: 12px; font-weight: bold;">{{ d.responsable }}</span></td>
+            <td style="width: 50%;"><strong>Paciente / Folio de Atencion:</strong><br><span style="font-size: 12px; font-weight: bold;">{{ d.paciente_folio }}</span></td>
+        </tr>
+        <tr>
+            <td colspan="2"><strong>Notas / Observaciones de Entrega:</strong> {{ d.notas }}</td>
+        </tr>
+    </tbody>
+</table>
+
+<div class="box-info">
+    <strong style="color: #0d6efd;">🔌 Accesorios e Insumos Entregados:</strong>
+    <p style="margin: 4px 0; font-size: 10.5px;">{{ d.accesorios }}</p>
+</div>
+
+<div class="box-info">
+    <strong style="color: #198754;">📋 Inspección Física y Funcional de Salida (Checklist):</strong>
+    <p style="margin: 4px 0; font-size: 10.5px;">{{ d.checklist }}</p>
+</div>
+
+<div class="terms">
+    <strong>TÉRMINOS Y CONDICIONES DE CUSTODIA Y RENTA:</strong><br>
+    1. El receptor en este acto recibe a su entera satisfacción el equipo médico arriba descrito en óptimas condiciones operativas, de limpieza y con los accesorios completos señalados.<br>
+    2. El receptor asume la responsabilidad civil, custodia y cuidado del equipo desde el momento de su entrega y hasta su devolución formal en el almacén de AVANT.<br>
+    3. En caso de daño, golpe, mal manejo, pérdida de accesorios o destrucción total/parcial del activo, el receptor cubrirá el costo total de reparación o el valor de reposición del equipo (${{ "{:,.2f}".format(d.costo) }} MXN).<br>
+    4. Queda estrictamente prohibida la intervención, apertura del chasis o modificación técnica de los componentes por personal no autorizado por AVANT.
+</div>
+
+<div class="signatures">
+    <div class="sig-block">
+        <div class="sig-line">ENTREGA (AVANT WMS)<br><span style="font-size: 9px; font-weight: normal;">{{ d.usuario }}</span></div>
+    </div>
+    <div class="sig-block">
+        <div class="sig-line">RECIBE CONFORME (RESPONSABLE)<br><span style="font-size: 9px; font-weight: normal;">Firma y Nombre de Custodia</span></div>
+    </div>
+</div>
+
+<script>
+    JsBarcode("#barcode_pdf", "{{ d.id_activo }}", { format: "CODE128", height: 35, fontSize: 11, margin: 0 });
+    setTimeout(() => { window.print(); }, 600);
+</script>
+
+</body>
+</html>

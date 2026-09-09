@@ -124,3 +124,122 @@ class Movimiento:
     AJUSTE_STOCK = "ajuste_stock"
     A_MANTENIMIENTO = "a_mantenimiento"
     DE_MANTENIMIENTO = "de_mantenimiento"
+
+
+# --- Lo que salio de revisar el sistema anterior (_diseno_anterior/) ---------
+
+
+class Empresa:
+    """Las dos razones sociales que factura AVANT.
+
+    La regla vive en el sistema anterior dentro de la plantilla de la remision:
+    si el hospital es del Grupo Angeles factura una empresa, si no, la otra.
+    Aqui queda en un solo lugar porque decide razon social, RFC y lista de
+    precios.
+    """
+
+    SOLUCIONES = "soluciones"
+    GARDE = "garde"
+
+    TODOS = (SOLUCIONES, GARDE)
+
+    DATOS = {
+        SOLUCIONES: {
+            "razon_social": "AVANT SOLUCIONES MEDICAS",
+            "rfc": "MPB210816298",
+        },
+        GARDE: {
+            "razon_social": "AVANT GARDE MEDIC SERVICE",
+            "rfc": "AGM210811HD9",
+        },
+    }
+
+    DIRECCION = (
+        "Calle 3 24, San Pedro de los Pinos, Benito Juarez, 03800, "
+        "Ciudad de Mexico, CDMX"
+    )
+    TELEFONOS = ("55 4503 9502", "55 35 72 87 84")
+    CORREO = "medicallfacturacion@gmail.com"
+
+    @classmethod
+    def para_hospital(cls, hospital):
+        """Grupo Angeles -> AVANT SOLUCIONES MEDICAS; el resto -> AVANT GARDE."""
+        nombre = (hospital or "").upper()
+        es_angeles = "ANGELES" in nombre or "ÁNGELES" in nombre
+        return cls.SOLUCIONES if es_angeles else cls.GARDE
+
+    @classmethod
+    def datos_para_hospital(cls, hospital):
+        return cls.DATOS[cls.para_hospital(hospital)]
+
+
+class Especialidad:
+    """Lista cerrada tomada del formulario de captura anterior."""
+
+    TODAS = (
+        "Otorrinolaringologia",
+        "Laparoscopia",
+        "Ginecologia",
+        "Urologia",
+        "Cirugia General",
+        "Otra",
+    )
+
+
+class VerificadoCon:
+    TODOS = ("Doctor", "Asistente", "Enfermera")
+
+
+class TipoPaciente:
+    PARTICULAR = "Particular"
+    SEGURO = "Seguro"
+
+    TODOS = (PARTICULAR, SEGURO)
+
+
+class MetodoPago:
+    """Solo aplica cuando el paciente es particular."""
+
+    EFECTIVO = "Efectivo"
+    TRANSFERENCIA = "Transferencia"
+
+    TODOS = (EFECTIVO, TRANSFERENCIA)
+
+
+class TipoRemision:
+    """El sistema anterior emite dos remisiones por nota: insumos y equipos."""
+
+    INSUMOS = "insumos"
+    EQUIPOS = "equipos"
+
+    TODOS = (INSUMOS, EQUIPOS)
+    ETIQUETAS = {INSUMOS: "Insumos", EQUIPOS: "Equipos"}
+
+
+class Checklist:
+    """Contenido real del checklist de salida de equipo."""
+
+    ACCESORIOS = (
+        "Cable de Poder",
+        "Pedal Doble/Sencillo",
+        "Fibra Optica",
+        "Fuente de Luz",
+        "Maletin Rigido",
+        "Pieza de Mano/Camisa",
+    )
+
+    INSPECCION = (
+        "Chasis Limpio/Intacto",
+        "Opticas Sin Rayaduras",
+        "Conectores Integros",
+        "Prueba de Encendido OK",
+    )
+
+    ETAPA_ALMACEN = "almacen"
+    ETAPA_HOSPITAL = "hospital"
+    ETAPAS = (ETAPA_ALMACEN, ETAPA_HOSPITAL)
+
+
+# IVA vigente. En el sistema anterior estaba escrito a mano en el JavaScript
+# de la remision; aqui es un solo valor configurable.
+IVA = 0.16

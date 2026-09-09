@@ -25,3 +25,5 @@ app/static/pdf/remisiones/*.pdf
 .idea/
 Thumbs.db
 desktop.ini
+
+# Migraciones: se versionan (migrations/), pero no la base local

@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Planificación de Demanda - AVANT WMS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background-color: #f4f6f9; margin: 0; }
+        .kpi-card { border-radius: 12px; border: none; transition: transform 0.2s; }
+        .kpi-card:hover { transform: translateY(-3px); }
+        .kpi-clickable { cursor: pointer; }
+        .table-responsive { max-height: 700px; }
+        .badge-comprar { background-color: #dc3545; color: white; font-weight: bold; }
+        .badge-riesgo { background-color: #ffc107; color: #000; font-weight: bold; }
+        .badge-ok { background-color: #198754; color: white; }
+        .th-sortable { cursor: pointer; user-select: none; }
+        .th-sortable:hover { background-color: #343a40 !important; }
+        .app-shell { min-height: 100vh; }
+        .app-shell .app-sidebar {
+            position: fixed; left: 0; top: 0; bottom: 0; width: 220px; background: linear-gradient(180deg, #111827 0%, #0f172a 100%); color: #fff; padding: 1rem 0.8rem; z-index: 1000; transition: width 0.25s ease;
+        }
+        .app-shell.sidebar-collapsed .app-sidebar { width: 80px; }
+        .app-shell.sidebar-collapsed .nav-label, .app-shell.sidebar-collapsed .brand-text { opacity: 0; width: 0; overflow: hidden; pointer-events: none; }
+        .app-shell.sidebar-collapsed .nav-link { justify-content: center; }
+        .app-shell.sidebar-collapsed .brand { justify-content: center; }
+        .app-shell.sidebar-collapsed .sidebar-toggle-btn { transform: rotate(180deg); }
+        .app-sidebar .brand { display: flex; align-items: center; gap: 0.7rem; font-weight: 800; font-size: 1.2rem; margin-bottom: 1rem; color: #f8fafc; }
+        .app-sidebar .brand i { color: #60a5fa; }
+        .app-sidebar .nav-link { display: flex; align-items: center; gap: 0.7rem; color: rgba(255,255,255,.8); text-decoration: none; padding: 0.7rem 0.9rem; border-radius: 10px; margin-bottom: 0.35rem; white-space: nowrap; }
+        .app-sidebar .nav-link:hover, .app-sidebar .nav-link.active { background-color: rgba(96,165,250,0.18); color: white; }
+        .app-sidebar .nav-link i { width: 18px; text-align: center; }
+        .shell-content { margin-left: 220px; padding: 1rem 1.2rem; transition: margin-left 0.25s ease; }
+        .app-shell.sidebar-collapsed .shell-content { margin-left: 80px; }
+        .sidebar-toggle-btn { border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.04); color: white; border-radius: 8px; width: 36px; height: 36px; transition: all 0.2s ease; }
+        @media (max-width: 991px) {
+            .shell-content { margin-left: 0; padding: 0.75rem; }
+            .app-shell .app-sidebar { position: static; width: 100%; }
+            .app-shell.sidebar-collapsed .app-sidebar { width: 100%; }
+            .app-shell.sidebar-collapsed .shell-content { margin-left: 0; }
+            .app-shell.sidebar-collapsed .nav-label, .app-shell.sidebar-collapsed .brand-text { opacity: 1; width: auto; }
+        }
+    </style>
+</head>
+<body>
+<div class="app-shell" id="appShell">
+    {% include '_sidebar.html' %}
+    <div class="shell-content">
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4 shadow-sm">
+    <div class="container-fluid">
+        <span class="navbar-brand fw-bold mb-0">Inventarios AVANT</span>
+    </div>
+</nav>
+
+<div class="container-fluid px-4 mb-5">
+    
+    <!-- ENCABEZADO -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="fw-bold text-dark mb-1">Módulo de Planificación de Demanda & Compras</h3>
+            <p class="text-muted mb-0">Cálculo de Mínimos (SS), Puntos de Reorden (ROP) y Predicción de Consumo IA a 30 Días.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="/exportar_orden_compra?lead_time={{ lead_time }}&cobertura={{ cobertura }}" class="btn btn-danger fw-bold shadow-sm">📑 Generar Sugerido de Compra (.xlsx)</a>
+        </div>
+    </div>
+
+    <!-- TARJETAS DE INDICADORES (KPIs) -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card kpi-card bg-danger text-white shadow-sm p-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-uppercase mb-1" style="font-size: 0.75rem;">Inversión Est. Requerida</h6>
+                        <h3 class="fw-bold mb-0">${{ "{:,.2f}".format(total_inversion) }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card kpi-card bg-warning text-dark shadow-sm p-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-uppercase mb-1" style="font-size: 0.75rem;">SKUs x Reabastecer</h6>
+                        <h3 class="fw-bold mb-0">{{ compra_urgente }} Items</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- TARJETA INTERACTIVA DE AGOTADOS -->
+        <div class="col-md-3">
+            <div class="card kpi-card bg-dark text-white shadow-sm p-3 kpi-clickable" id="cardAgotados" onclick="filtrarPorAgotados()" title="Haz clic para filtrar solo SKUs en 0 piezas">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-uppercase mb-1" style="font-size: 0.75rem;" id="tituloCardAgotados">SKUs en Agotado Total</h6>
+                        <h3 class="fw-bold mb-0 text-danger" id="cantAgotados">{{ agotados }} Items</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card kpi-card bg-info text-dark shadow-sm p-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-uppercase mb-1" style="font-size: 0.75rem;">Parámetros Modelo</h6>
+                        <h6 class="fw-bold mb-0">Lead Time: {{ lead_time }}d | Target: {{ cobertura }}d</h6>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CONTROLES Y BÚSQUEDA -->
+    <div class="card shadow-sm border-0 mb-4 p-3 bg-white">
+        <form action="/demanda" method="GET" class="row align-items-end g-3">
+            <div class="col-md-3">
+                <label class="form-label fw-bold text-secondary mb-1">⏱️ Lead Time Proveedor (Días):</label>
+                <input type="number" min="1" max="90" name="lead_time" class="form-control fw-bold border-info" value="{{ lead_time }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-bold text-secondary mb-1">🎯 Cobertura Deseada (Días):</label>
+                <input type="number" min="7" max="180" name="cobertura" class="form-control fw-bold border-info" value="{{ cobertura }}">
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-dark w-100 fw-bold">Recalcular IA</button>
+            </div>
+            <div class="col-md-4">
+                <input type="text" id="buscadorDemanda" class="form-control border-primary fw-bold" placeholder="🔍 Buscar SKU o Insumo..." onkeyup="filtrarTablaDemanda()">
+            </div>
+        </form>
+    </div>
+
+    <!-- TABLA DE PLANIFICACIÓN -->
+    <div class="card shadow-lg border-0">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table id="tabla_demanda" class="table table-hover table-bordered table-striped mb-0 align-middle text-center" style="font-size: 0.82rem;">
+                    <thead class="table-dark sticky-top">
+                        <tr>
+                            <th>SKU</th>
+                            <th class="text-start">Insumo</th>
+                            
+                            <!-- COLUMNA SORTABLE STOCK ACTUAL -->
+                            <th class="th-sortable text-warning" onclick="ordenarPorStock()" title="Haz clic para ordenar por inventario">
+                                Stock Actual <span id="iconSortStock">⇅</span>
+                            </th>
+                            
+                            <th class="text-info bg-secondary">Mínimo (SS)</th>
+                            <th class="text-warning bg-secondary">Punto Reorden (ROP)</th>
+                            <th class="bg-secondary">Stock Máximo</th>
+                            <th class="text-primary">Proyección 30d IA</th>
+                            <th>Cobertura Días</th>
+                            <th>Estado</th>
+                            <th class="text-danger fw-bold">Sugerido Compra</th>
+                            <th>Costo U.</th>
+                            <th>Inversión Est.</th>
+                            <!-- 🟢 NUEVA COLUMNA PROVEEDOR 🟢 -->
+                            <th class="text-info">Último Proveedor</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cuerpo_demanda">
+                        {% for p in plan %}
+                        <tr class="fila-demanda" data-stock="{{ p.stock_actual }}">
+                            <td class="fw-bold text-primary">{{ p.sku }}</td>
+                            <td class="text-start fw-bold text-secondary">{{ p.nombre }}</td>
+                            <td class="fs-6 fw-bold celda-stock {% if p.stock_actual == 0 %}text-danger{% endif %}">{{ p.stock_actual }}</td>
+                            
+                            <td class="fw-bold text-info bg-light">{{ p.stock_minimo }}</td>
+                            <td class="fw-bold text-dark bg-warning bg-opacity-25">{{ p.rop }}</td>
+                            <td class="fw-bold text-secondary bg-light">{{ p.stock_maximo }}</td>
+                            
+                            <td class="fw-bold text-primary fs-6">{{ p.proyeccion_30d }} pzas</td>
+                            <td class="fw-bold">{{ p.cobertura_dias }} d</td>
+                            
+                            <td>
+                                {% if p.estado == 'COMPRAR' %}
+                                    <span class="badge badge-comprar p-2">COMPRAR</span>
+                                {% elif p.estado == 'RIESGO' %}
+                                    <span class="badge badge-riesgo p-2">EN RIESGO</span>
+                                {% else %}
+                                    <span class="badge badge-ok p-2">OK</span>
+                                {% endif %}
+                            </td>
+                            
+                            <td class="fs-6 fw-bold text-danger bg-danger bg-opacity-10">
+                                {% if p.sugerido_compra > 0 %}
+                                    +{{ p.sugerido_compra }}
+                                {% else %}
+                                    0
+                                {% endif %}
+                            </td>
+                            
+                            <td class="text-secondary">${{ "{:,.2f}".format(p.costo_u) }}</td>
+                            <td class="fw-bold text-success">${{ "{:,.2f}".format(p.costo_total_sugerido) }}</td>
+                            <!-- 🟢 CELDA PROVEEDOR SUGERIDO 🟢 -->
+                            <td class="text-uppercase fw-bold text-muted" style="font-size: 0.70rem;">{{ p.proveedor_sugerido }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="13" class="py-5 text-muted"><em>No hay datos de demanda en el sistema.</em></td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let filtroAgotadosActivo = false;
+    let ordenStockAsc = true;
+
+    // Filtro interactivo al hacer clic en la tarjeta "SKUs en Agotado Total"
+    function filtrarPorAgotados() {
+        filtroAgotadosActivo = !filtroAgotadosActivo;
+        let card = document.getElementById("cardAgotados");
+        let buscador = document.getElementById("buscadorDemanda");
+        buscador.value = "";
+        
+        let filas = document.getElementsByClassName("fila-demanda");
+        for (let i = 0; i < filas.length; i++) {
+            let stockVal = parseInt(filas[i].getAttribute("data-stock")) || 0;
+            if (filtroAgotadosActivo) {
+                if (stockVal === 0) {
+                    filas[i].style.display = "";
+                } else {
+                    filas[i].style.display = "none";
+                }
+            } else {
+                filas[i].style.display = "";
+            }
+        }
+
+        if (filtroAgotadosActivo) {
+            card.style.border = "3px solid #dc3545";
+        } else {
+            card.style.border = "none";
+        }
+    }
+
+    // Ordenamiento interactivo por la columna "Stock Actual"
+    function ordenarPorStock() {
+        let cuerpo = document.getElementById("cuerpo_demanda");
+        let filas = Array.from(cuerpo.getElementsByClassName("fila-demanda"));
+
+        filas.sort((a, b) => {
+            let stockA = parseInt(a.getAttribute("data-stock")) || 0;
+            let stockB = parseInt(b.getAttribute("data-stock")) || 0;
+            return ordenStockAsc ? (stockA - stockB) : (stockB - stockA);
+        });
+
+        ordenStockAsc = !ordenStockAsc;
+        document.getElementById("iconSortStock").innerText = ordenStockAsc ? " ⬆️" : " ⬇️";
+
+        filas.forEach(fila => cuerpo.appendChild(fila));
+    }
+
+    // Buscador en tiempo real por texto
+    function filtrarTablaDemanda() {
+        filtroAgotadosActivo = false;
+        document.getElementById("cardAgotados").style.border = "none";
+        
+        let input = document.getElementById("buscadorDemanda").value.toUpperCase();
+        let filas = document.getElementsByClassName("fila-demanda");
+        for (let i = 0; i < filas.length; i++) {
+            let textoFila = filas[i].textContent || filas[i].innerText;
+            if (textoFila.toUpperCase().indexOf(input) > -1) {
+                filas[i].style.display = "";
+            } else {
+                filas[i].style.display = "none";
+            }
+        }
+    }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    const appShell = document.getElementById('appShell');
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    if (localStorage.getItem('avantSidebarCollapsed') === 'true') {
+        appShell.classList.add('sidebar-collapsed');
+    }
+    sidebarToggle.addEventListener('click', () => {
+        const isCollapsed = appShell.classList.toggle('sidebar-collapsed');
+        localStorage.setItem('avantSidebarCollapsed', String(isCollapsed));
+    });
+</script>
+</body>
+</html>

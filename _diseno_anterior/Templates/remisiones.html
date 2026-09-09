@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AVANT - Módulo de Remisiones</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        body { margin: 0; }
+        .app-shell { min-height: 100vh; }
+        .app-shell .app-sidebar {
+            position: fixed; left: 0; top: 0; bottom: 0; width: 220px; background: linear-gradient(180deg, #111827 0%, #0f172a 100%); color: #fff; padding: 1rem 0.8rem; z-index: 1000; transition: width 0.25s ease;
+        }
+        .app-shell.sidebar-collapsed .app-sidebar { width: 80px; }
+        .app-shell.sidebar-collapsed .nav-label, .app-shell.sidebar-collapsed .brand-text { opacity: 0; width: 0; overflow: hidden; pointer-events: none; }
+        .app-shell.sidebar-collapsed .nav-link { justify-content: center; }
+        .app-shell.sidebar-collapsed .brand { justify-content: center; }
+        .app-shell.sidebar-collapsed .sidebar-toggle-btn { transform: rotate(180deg); }
+        .app-sidebar .brand { display: flex; align-items: center; gap: 0.7rem; font-weight: 800; font-size: 1.2rem; margin-bottom: 1rem; color: #f8fafc; }
+        .app-sidebar .brand i { color: #60a5fa; }
+        .app-sidebar .nav-link { display: flex; align-items: center; gap: 0.7rem; color: rgba(255,255,255,.8); text-decoration: none; padding: 0.7rem 0.9rem; border-radius: 10px; margin-bottom: 0.35rem; white-space: nowrap; }
+        .app-sidebar .nav-link:hover, .app-sidebar .nav-link.active { background-color: rgba(96,165,250,0.18); color: white; }
+        .app-sidebar .nav-link i { width: 18px; text-align: center; }
+        .shell-content { margin-left: 220px; padding: 1rem 1.2rem; transition: margin-left 0.25s ease; }
+        .app-shell.sidebar-collapsed .shell-content { margin-left: 80px; }
+        .sidebar-toggle-btn { border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.04); color: white; border-radius: 8px; width: 36px; height: 36px; transition: all 0.2s ease; }
+        @media print {
+            body * { visibility: hidden; }
+            #seccionImpresionRemision, #seccionImpresionRemision * { visibility: visible; }
+            #seccionImpresionRemision { position: absolute; left: 0; top: 0; width: 100%; }
+            .no-print { display: none !important; }
+        }
+        @media (max-width: 991px) {
+            .shell-content { margin-left: 0; padding: 0.75rem; }
+            .app-shell .app-sidebar { position: static; width: 100%; }
+            .app-shell.sidebar-collapsed .app-sidebar { width: 100%; }
+            .app-shell.sidebar-collapsed .shell-content { margin-left: 0; }
+            .app-shell.sidebar-collapsed .nav-label, .app-shell.sidebar-collapsed .brand-text { opacity: 1; width: auto; }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="app-shell" id="appShell">
+        {% include '_sidebar.html' %}
+
+        <div class="shell-content">
+            <!-- BARRA DE NAVEGACIÓN SUPERIOR -->
+            <nav class="bg-slate-900 text-white p-3 mb-6 no-print">
+                <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-4">
+                    <span class="font-bold text-lg text-amber-400">Inventarios AVANT</span>
+                </div>
+            </nav>
+
+            <div class="max-w-6xl mx-auto p-6 no-print">
+                <!-- ENCABEZADO PRINCIPAL -->
+                <div class="flex flex-wrap justify-between items-center mb-6 border-b pb-4 gap-4">
+                    <div>
+                        <h1 class="text-3xl font-bold text-gray-800">Historial de Remisiones</h1>
+                        <p class="text-sm text-gray-500">Consulta de historial e impresión de remisiones de insumos y equipos generadas</p>
+                    </div>
+
+                    <div class="flex gap-2 flex-wrap">
+                        <a href="/" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded transition">
+                            ← Menú Principal
+                        </a>
+                    </div>
+                </div>
+
+                <!-- HISTORIAL DE REMISIONES (VISTA PRINCIPAL EXCLUSIVA) -->
+                <div class="bg-white p-8 rounded-lg shadow-md border">
+                    <div class="flex justify-between items-center mb-4 border-b pb-2">
+                        <h2 class="text-xl font-bold text-gray-800">Remisiones Emitidas (Insumos y Equipos)</h2>
+                        <button type="button" onclick="exportarExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm px-4 py-2 rounded font-semibold">
+                            📊 Exportar Historial (.xlsx)
+                        </button>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse border border-gray-200">
+                            <thead>
+                                <tr class="bg-gray-100 text-sm text-gray-700">
+                                    <th class="p-2 border text-center">Remisión N°</th>
+                                    <th class="p-2 border">Fecha</th>
+                                    <th class="p-2 border">Hospital</th>
+                                    <th class="p-2 border">Doctor</th>
+                                    <th class="p-2 border">Tipo</th>
+                                    <th class="p-2 border text-center">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="historialRemisionesBody">
+                                <tr><td colspan="6" class="p-4 text-center text-gray-400">No hay remisiones registradas.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PLANTILLA DE IMPRESIÓN FISICA -->
+    <div id="seccionImpresionRemision" class="hidden bg-white p-8 text-black text-xs font-sans max-w-4xl mx-auto border">
+        <div class="flex justify-between items-start mb-4 pb-2 border-b">
+            <div class="w-1/3">
+                <h1 class="text-4xl font-extrabold tracking-widest text-gray-400">AVANT</h1>
+            </div>
+            <div class="w-1/3 text-center">
+                <h2 id="printRazonSocial" class="text-sm font-bold uppercase">Avant Garde Medic Service</h2>
+                <p id="printRfc" class="text-[10px]">R.F.C. AGM210811HD9</p>
+                <p class="text-[9px] mt-1">Calle 3 24, San Pedro de los Pinos, Benito Juárez, 03800, Ciudad de México, CDMX</p>
+            </div>
+            <div class="w-1/3 text-right">
+                <p class="font-bold text-sm">REMISIÓN N°</p>
+                <p id="printRemisionNo" class="text-base font-bold text-red-600"></p>
+            </div>
+        </div>
+
+        <div class="flex justify-between font-bold text-xs mb-4 uppercase">
+            <div>HOSPITAL: <span id="printHospital" class="font-normal"></span></div>
+            <div>CIUDAD: <span id="printCiudad" class="font-normal">CIUDAD DE MEXICO</span></div>
+        </div>
+
+        <table class="w-full border-collapse border-t border-b border-black mb-4">
+            <thead>
+                <tr class="border-b border-black text-center font-bold">
+                    <th class="py-1 px-2 w-16 text-left">CANTIDAD</th>
+                    <th class="py-1 px-2 text-left">DESCRIPCIÓN</th>
+                    <th class="py-1 px-2 w-28 text-right">PRECIO UNITARIO</th>
+                    <th class="py-1 px-2 w-28 text-right">IMPORTE</th>
+                </tr>
+            </thead>
+            <tbody id="printTablaConceptos"></tbody>
+        </table>
+
+        <div class="flex justify-end mb-6">
+            <div class="w-48 font-bold text-xs">
+                <div class="flex justify-between border-b py-0.5">
+                    <span>SUBTOTAL</span>
+                    <span id="printSubtotal">$ 0.00</span>
+                </div>
+                <div class="flex justify-between border-b py-0.5">
+                    <span>IVA</span>
+                    <span id="printIva">$ 0.00</span>
+                </div>
+                <div class="flex justify-between py-0.5 text-sm">
+                    <span>TOTAL</span>
+                    <span id="printTotal">$ 0.00</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- CAMPOS EN BLANCO PARA LLENAR A MANO (PACIENTE, HABITACIÓN, EPISODIO, ASEGURADORA) -->
+        <div class="grid grid-cols-2 gap-4 mb-8 border border-dashed border-gray-400 p-3 bg-gray-50/50">
+            <div class="space-y-3">
+                <div><span class="font-bold">Fecha:</span> <span id="printFecha" class="underline underline-offset-4">________________________</span></div>
+                <div><span class="font-bold">Dr/a:</span> <span id="printDoctor"></span></div>
+                <div><span class="font-bold">Paciente:</span> <span class="inline-block border-b border-black w-48">&nbsp;</span></div>
+                <div><span class="font-bold">Hab.:</span> <span class="inline-block border-b border-black w-16">&nbsp;</span></div>
+                <div><span class="font-bold">Cirugía:</span> <span id="printCirugia"></span></div>
+            </div>
+            <div class="space-y-3">
+                <div><span class="font-bold">Episodio:</span> <span class="inline-block border-b border-black w-32">&nbsp;</span></div>
+                <div><span class="font-bold">Aseguradora:</span> <span class="inline-block border-b border-black w-36">&nbsp;</span></div>
+                <div class="border border-black h-12 p-1 mt-1 bg-white">
+                    <span class="font-bold text-[10px] block">Sellos / Observaciones:</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-6 text-center pt-8 border-t border-gray-300 mb-8">
+            <div><div class="border-t border-black pt-1 font-bold">Firma medico</div></div>
+            <div><div class="border-t border-black pt-1 font-bold">Firma enfermería</div></div>
+            <div>
+                <div class="border-t border-black pt-1 font-bold">Técnico</div>
+                <p id="printTecnicoNombre" class="text-[10px] text-gray-600 mt-1"></p>
+            </div>
+        </div>
+
+        <div class="flex justify-around items-center text-[10px] text-gray-700 border-t pt-4">
+            <div>📞 Contacto y programaciones: <b>55 4503 9502</b> / <b>55 35 72 87 84</b></div>
+            <div>✉️ medicallfacturacion@gmail.com</div>
+        </div>
+    </div>
+
+    <!-- SCRIPT DE MANEJO -->
+    <script type="application/json" id="historialRemisionesData">{{ historial|tojson }}</script>
+    <script>
+    let listaRemisiones = JSON.parse(document.getElementById("historialRemisionesData").textContent);
+
+    document.addEventListener("DOMContentLoaded", () => {
+        renderizarHistorial();
+    });
+
+    function imprimirFormato(data) {
+        document.getElementById("printRemisionNo").textContent = data.remisionNo;
+        document.getElementById("printHospital").textContent = data.hospital;
+
+        const hospitalNombre = (data.hospital || "").toUpperCase();
+        const esAngeles = hospitalNombre.includes("ANGELES") || hospitalNombre.includes("ÁNGELES");
+
+        if (esAngeles) {
+            document.getElementById("printRazonSocial").textContent = "AVANT SOLUCIONES MEDICAS";
+            document.getElementById("printRfc").textContent = "R.F.C. MPB210816298";
+        } else {
+            document.getElementById("printRazonSocial").textContent = "AVANT GARDE MEDIC SERVICE";
+            document.getElementById("printRfc").textContent = "R.F.C. AGM210811HD9";
+        }
+
+        document.getElementById("printCiudad").textContent = data.ciudad || "CIUDAD DE MEXICO";
+        document.getElementById("printFecha").textContent = data.fechaSinHora;
+        document.getElementById("printDoctor").textContent = data.doctor;
+        document.getElementById("printCirugia").textContent = data.cirugia;
+        document.getElementById("printTecnicoNombre").textContent = data.tecnico;
+
+        const tbody = document.getElementById("printTablaConceptos");
+        tbody.innerHTML = "";
+        let subtotal = 0;
+
+        data.conceptos.forEach(item => {
+            subtotal += item.importe;
+            const tr = document.createElement("tr");
+            tr.className = "border-b border-gray-200 text-center";
+            tr.innerHTML = `
+                <td class="py-1 px-2 text-left font-bold">${item.cantidad}</td>
+                <td class="py-1 px-2 text-left uppercase font-semibold">${item.nombre}</td>
+                <td class="py-1 px-2 text-right">${item.precio > 0 ? '$ ' + item.precio.toLocaleString('es-MX', {minimumFractionDigits: 2}) : ''}</td>
+                <td class="py-1 px-2 text-right font-bold">${item.importe > 0 ? '$ ' + item.importe.toLocaleString('es-MX', {minimumFractionDigits: 2}) : ''}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        const iva = subtotal * 0.16;
+        const total = subtotal + iva;
+
+        document.getElementById("printSubtotal").textContent = subtotal > 0 ? `$ ${subtotal.toLocaleString('es-MX', {minimumFractionDigits: 2})}` : "$ 0.00";
+        document.getElementById("printIva").textContent = iva > 0 ? `$ ${iva.toLocaleString('es-MX', {minimumFractionDigits: 2})}` : "$ 0.00";
+        document.getElementById("printTotal").textContent = total > 0 ? `$ ${total.toLocaleString('es-MX', {minimumFractionDigits: 2})}` : "$ 0.00";
+
+        const divPrint = document.getElementById("seccionImpresionRemision");
+        divPrint.classList.remove("hidden");
+        window.print();
+        divPrint.classList.add("hidden");
+    }
+
+    function renderizarHistorial() {
+        const tbody = document.getElementById("historialRemisionesBody");
+        tbody.innerHTML = "";
+        if (listaRemisiones.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-gray-400">No hay remisiones registradas.</td></tr>`;
+            return;
+        }
+
+        listaRemisiones.forEach(r => {
+            const tr = document.createElement("tr");
+            tr.className = "border-b text-sm hover:bg-gray-50";
+            tr.innerHTML = `
+                <td class="p-2 border text-center font-bold text-blue-600">${r.remisionNo}</td>
+                <td class="p-2 border text-xs text-gray-500">${r.fechaRegistro}</td>
+                <td class="p-2 border font-medium">${r.hospital}</td>
+                <td class="p-2 border">${r.doctor}</td>
+                <td class="p-2 border"><span class="bg-slate-100 text-slate-800 px-2 py-0.5 rounded text-xs font-semibold">${r.tipo_remision || 'Insumos'}</span></td>
+                <td class="p-2 border text-center space-x-1">
+                    <button onclick='imprimirFormato(${JSON.stringify(r)})' class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-2.5 py-1 rounded inline-block font-semibold">🖨️ Imprimir</button>
+                    <a href='/remisiones/${r.id}/descargar' class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-2.5 py-1 rounded inline-block font-semibold">⬇️ Descargar</a>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function exportarExcel() {
+        if (listaRemisiones.length === 0) return alert("No hay datos para exportar.");
+        const worksheet = XLSX.utils.json_to_sheet(listaRemisiones);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Remisiones");
+        XLSX.writeFile(workbook, `Remisiones_Avant_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    }
+    </script>
+</body>
+</html>

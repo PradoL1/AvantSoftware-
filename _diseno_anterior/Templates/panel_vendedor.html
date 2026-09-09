@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AVANT - Panel de Vendedores</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- jQuery y Select2 -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+    <style>
+        body { margin: 0; }
+        .app-shell { min-height: 100vh; }
+        .app-shell .app-sidebar {
+            position: fixed; left: 0; top: 0; bottom: 0; width: 220px; background: linear-gradient(180deg, #111827 0%, #0f172a 100%); color: #fff; padding: 1rem 0.8rem; z-index: 1000; transition: width 0.25s ease;
+        }
+        .app-shell.sidebar-collapsed .app-sidebar { width: 80px; }
+        .app-shell.sidebar-collapsed .nav-label, .app-shell.sidebar-collapsed .brand-text { opacity: 0; width: 0; overflow: hidden; pointer-events: none; }
+        .app-shell.sidebar-collapsed .nav-link { justify-content: center; }
+        .app-shell.sidebar-collapsed .brand { justify-content: center; }
+        .app-shell.sidebar-collapsed .sidebar-toggle-btn { transform: rotate(180deg); }
+        .app-sidebar .brand { display: flex; align-items: center; gap: 0.7rem; font-weight: 800; font-size: 1.2rem; margin-bottom: 1rem; color: #f8fafc; }
+        .app-sidebar .brand i { color: #60a5fa; }
+        .app-sidebar .nav-link { display: flex; align-items: center; gap: 0.7rem; color: rgba(255,255,255,.8); text-decoration: none; padding: 0.7rem 0.9rem; border-radius: 10px; margin-bottom: 0.35rem; white-space: nowrap; }
+        .app-sidebar .nav-link:hover, .app-sidebar .nav-link.active { background-color: rgba(96,165,250,0.18); color: white; }
+        .app-sidebar .nav-link i { width: 18px; text-align: center; }
+        .shell-content { margin-left: 220px; padding: 1rem 1.2rem; transition: margin-left 0.25s ease; }
+        .app-shell.sidebar-collapsed .shell-content { margin-left: 80px; }
+        .sidebar-toggle-btn { border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.04); color: white; border-radius: 8px; width: 36px; height: 36px; transition: all 0.2s ease; }
+        
+        .select2-container .select2-selection--single {
+            height: 42px !important;
+            border: 1px solid #d1d5db !important;
+            border-radius: 0.25rem !important;
+            padding: 6px 12px !important;
+        }
+        .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: 40px !important;
+        }
+        
+        @media (max-width: 991px) {
+            .shell-content { margin-left: 0; padding: 0.75rem; }
+            .app-sidebar { position: static; width: 100%; }
+            .app-shell.sidebar-collapsed .app-sidebar { width: 100%; }
+            .app-shell.sidebar-collapsed .shell-content { margin-left: 0; }
+            .app-shell.sidebar-collapsed .nav-label, .app-shell.sidebar-collapsed .brand-text { opacity: 1; width: auto; }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="app-shell" id="appShell">
+        {% include '_sidebar.html' %}
+
+        <!-- CONTENIDO PRINCIPAL -->
+        <div class="shell-content">
+            <nav class="bg-slate-900 text-white p-3 mb-6">
+                <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-4">
+                    <span class="font-bold text-lg text-amber-400">Inventarios AVANT</span>
+                </div>
+            </nav>
+
+            <div class="max-w-6xl mx-auto p-6">
+                
+                <!-- ENCABEZADO PRINCIPAL CON BOTÓN ARRIBA -->
+                <div class="flex flex-wrap justify-between items-center mb-6 pb-4 border-b gap-4">
+                    <div>
+                        <h1 class="text-3xl font-bold text-gray-800 flex items-center gap-2">
+                            <i class="fas fa-file-invoice text-blue-600"></i> Panel de Solicitudes y Ventas
+                        </h1>
+                        <p class="text-sm text-gray-500 mt-1">Módulo de registro, control y generación automática de remisiones (Insumos y Equipos)</p>
+                    </div>
+
+                    <div class="flex gap-2 flex-wrap">
+                        <!-- Botón para abrir el Modal del Formulario -->
+                        <button type="button" 
+                                onclick="document.getElementById('modalNotaVenta').classList.remove('hidden')" 
+                                class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded shadow transition flex items-center gap-2">
+                            <i class="fas fa-plus-circle"></i> + Nueva Nota de Venta
+                        </button>
+                        <a href="/exportar-notas-excel" class="bg-emerald-800 hover:bg-emerald-900 text-white font-bold py-2 px-4 rounded transition flex items-center gap-2">
+                            <i class="fas fa-file-excel"></i> Exportar a Excel
+                        </a>
+                        <a href="/" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded transition">
+                            ← Menú
+                        </a>
+                    </div>
+                </div>
+
+                <!-- TABLA DE HISTORIAL DE NOTAS REGISTRADAS -->
+                <div class="bg-white p-8 rounded-lg shadow-md border">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2 flex justify-between items-center">
+                        <span><i class="fas fa-list-alt"></i> Historial de Notas y Remisiones Generadas</span>
+                    </h2>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse border border-gray-200 text-sm">
+                            <thead>
+                                <tr class="bg-slate-800 text-white">
+                                    <th class="p-2 border">ID Único</th>
+                                    <th class="p-2 border">Fecha Cirugía</th>
+                                    <th class="p-2 border">Vendedor</th>
+                                    <th class="p-2 border">Especialidad</th>
+                                    <th class="p-2 border">Doctor / Hospital</th>
+                                    <th class="p-2 border">Cobro / Pago</th>
+                                    <th class="p-2 border text-center">Acciones Remisión</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if notas_registradas %}
+                                    {% for nota in notas_registradas %}
+                                    <tr class="border-b hover:bg-gray-50">
+                                        <td class="p-2 border font-bold text-blue-700">{{ nota.id_registro }}</td>
+                                        <td class="p-2 border">{{ nota.fecha_procedimiento }}</td>
+                                        <td class="p-2 border">{{ nota.vendedor }}</td>
+                                        <td class="p-2 border"><span class="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded font-semibold">{{ nota.especialidad }}</span></td>
+                                        <td class="p-2 border">
+                                            <strong>{{ nota.doctor }}</strong><br>
+                                            <span class="text-gray-500 text-xs">{{ nota.hospital }} (Verif: {{ nota.verificado_con }})</span>
+                                        </td>
+                                        <td class="p-2 border">
+                                            {{ nota.tipo_paciente }}
+                                            {% if nota.metodo_pago %}
+                                                <br><span class="text-xs text-amber-700 font-medium">({{ nota.metodo_pago }})</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="p-2 border text-center">
+                                            <div class="flex justify-center gap-1 flex-wrap">
+                                                <a href="/imprimir-nota/{{ nota.id_registro }}" target="_blank" class="bg-sky-600 hover:bg-sky-700 text-white px-2 py-1 rounded text-xs flex items-center gap-1" title="Remisión Insumos">
+                                                    <i class="fas fa-boxes"></i> Insumos
+                                                </a>
+                                                <a href="/imprimir-nota-equipos/{{ nota.id_registro }}" target="_blank" class="bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-1 rounded text-xs flex items-center gap-1" title="Remisión Equipos">
+                                                    <i class="fas fa-tools"></i> Equipos
+                                                </a>
+                                                <form action="/eliminar-nota/{{ nota.id_registro }}" method="POST" onsubmit="return confirm('¿Confirma eliminar la nota {{ nota.id_registro }}?');">
+                                                    <button type="submit" class="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs flex items-center gap-1" title="Eliminar Nota">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="7" class="p-4 text-center text-gray-400">No hay notas de venta registradas actualmente.</td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL FLOTANTE DE CAPTURA DE NOTA DE VENTA -->
+    <div id="modalNotaVenta" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex justify-center items-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden">
+            
+            <!-- Cabecera del Modal -->
+            <div class="bg-gray-800 text-white px-6 py-4 flex justify-between items-center">
+                <h3 class="text-lg font-bold flex items-center gap-2">
+                    <i class="fas fa-plus-circle"></i> Registrar Nueva Nota y Generar Remisiones Automáticas
+                </h3>
+                <button type="button" 
+                        onclick="document.getElementById('modalNotaVenta').classList.add('hidden')" 
+                        class="text-gray-400 hover:text-white text-xl font-bold">&times;</button>
+            </div>
+
+            <!-- Cuerpo del Modal (Formulario de Captura) -->
+            <form action="/nueva-venta-vendedor" method="POST" class="flex flex-col flex-1 overflow-hidden">
+                <div class="p-6 overflow-y-auto flex-1 space-y-6">
+                    
+                    <!-- 1. Datos Generales -->
+                    <div>
+                        <h2 class="text-lg font-bold text-gray-800 mb-3 border-b pb-1"><i class="fas fa-clipboard"></i> 1. Datos Generales del Procedimiento</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">Nombre del Vendedor:</label>
+                                <input type="text" name="vendedor" required class="w-full border rounded p-2" placeholder="Ej. Emiliano Martínez">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">Fecha del Procedimiento:</label>
+                                <input type="date" name="fecha_procedimiento" required class="w-full border rounded p-2">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">Especialidad Médica:</label>
+                                <select name="especialidad" required class="w-full border rounded p-2">
+                                    <option value="">-- Seleccionar --</option>
+                                    <option value="Otorrinolaringología">Otorrinolaringología</option>
+                                    <option value="Laparoscopia">Laparoscopia</option>
+                                    <option value="Ginecología">Ginecología</option>
+                                    <option value="Urología">Urología</option>
+                                    <option value="Cirugía General">Cirugía General</option>
+                                    <option value="Otra">Otra</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">Cirugía / Procedimiento:</label>
+                                <input type="text" name="cirugia" required class="w-full border rounded p-2" placeholder="Ej. Colecistectomía">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">Doctor(a):</label>
+                                <input type="text" name="doctor" required class="w-full border rounded p-2" placeholder="Dr. Juan Pérez">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">Verificado Con:</label>
+                                <select name="verificado_con" required class="w-full border rounded p-2">
+                                    <option value="">-- Seleccionar --</option>
+                                    <option value="Doctor">Doctor(a)</option>
+                                    <option value="Asistente">Asistente</option>
+                                    <option value="Enfermera">Enfermera(o)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">Hospital / Clínica:</label>
+                                <input type="text" name="hospital" required class="w-full border rounded p-2" placeholder="Hospital Ángeles">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">Tipo de Paciente / Cobro:</label>
+                                <select id="tipo_paciente" name="tipo_paciente" required onchange="toggleMetodoPago()" class="w-full border rounded p-2">
+                                    <option value="">-- Seleccionar --</option>
+                                    <option value="Particular">Particular</option>
+                                    <option value="Seguro">Seguro Médico</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div id="contenedorMetodoPago" class="hidden md:col-span-1">
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">Método de Pago:</label>
+                                <select id="metodo_pago" name="metodo_pago" class="w-full border rounded p-2 bg-amber-50 border-amber-300">
+                                    <option value="">-- Seleccionar Método --</option>
+                                    <option value="Efectivo">Efectivo</option>
+                                    <option value="Transferencia">Transferencia</option>
+                                </select>
+                            </div>
+                            <div class="md:col-span-3">
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">Observaciones e Indicaciones:</label>
+                                <input type="text" name="observaciones" class="w-full border rounded p-2" placeholder="Ej. Entregar en Quirófano 2. Llevar cable de fibra óptica extra.">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. Equipos Requeridos -->
+                    <div>
+                        <h2 class="text-lg font-bold text-gray-800 mb-3 border-b pb-1"><i class="fas fa-tools"></i> 2. Equipos Requeridos (Remisión Automática de Equipos)</h2>
+                        <div id="contenedorEquipos" class="space-y-3 mb-3">
+                            <div class="flex gap-2">
+                                <input type="text" name="equipos_manuales[]" placeholder="Ej. Torre de Laparoscopia / Cámara HD" class="w-full border rounded p-2">
+                                <button type="button" onclick="this.parentElement.remove()" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded">❌</button>
+                            </div>
+                        </div>
+                        <button type="button" onclick="agregarEquipo()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded text-sm font-semibold">
+                            + Agregar otro equipo
+                        </button>
+                    </div>
+
+                    <!-- 3. Consumibles -->
+                    <div>
+                        <h2 class="text-lg font-bold text-gray-800 mb-3 border-b pb-1"><i class="fas fa-boxes"></i> 3. Consumibles (Remisión Automática de Insumos)</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">Buscar / Seleccionar Insumo:</label>
+                                <select id="selectInsumo" class="w-full border rounded p-2">
+                                    <option value="">Escribe para buscar insumo o SKU...</option>
+                                    {% for item in inventario %}
+                                    <option value="{{ item[0] }}">
+                                        [{{ item[0] }}] {{ item[1] }} — Stock: {{ item[2] }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">Cantidad:</label>
+                                <input type="number" id="cantidadInsumo" min="1" value="1" class="w-full border rounded p-2 text-center h-[42px]">
+                            </div>
+                            <div class="flex items-end">
+                                <button type="button" onclick="agregarConsumible()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold h-[42px] rounded">
+                                    Agregar Insumo
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse border border-gray-200">
+                                <thead>
+                                    <tr class="bg-gray-100 text-sm text-gray-700">
+                                        <th class="p-2 border">Código / Insumo</th>
+                                        <th class="p-2 border text-center">Cantidad</th>
+                                        <th class="p-2 border text-center">Stock Actual</th>
+                                        <th class="p-2 border text-center">Estatus Stock</th>
+                                        <th class="p-2 border text-center">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tablaConsumiblesBody">
+                                    <tr><td colspan="5" class="p-4 text-center text-gray-400">Sin consumibles agregados.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Footer del Modal -->
+                <div class="bg-gray-50 px-6 py-4 border-t flex justify-end gap-3">
+                    <button type="button" 
+                            onclick="document.getElementById('modalNotaVenta').classList.add('hidden')" 
+                            class="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg font-medium transition">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-2 rounded shadow flex items-center gap-2">
+                        💾 Guardar y Generar Remisiones Automáticas
+                    </button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+
+    <script id="inventario-data" type="application/json">{{ inventario | tojson }}</script>
+    <script>
+        const inventarioRaw = JSON.parse(document.getElementById("inventario-data").textContent);
+        const kardexInventario = {};
+
+        if (Array.isArray(inventarioRaw)) {
+            inventarioRaw.forEach(item => {
+                kardexInventario[item[0]] = { nombre: item[1], stock: item[2] };
+            });
+        }
+
+        let consumiblesSeleccionados = [];
+
+        function toggleMetodoPago() {
+            const tipo = document.getElementById("tipo_paciente").value;
+            const contenedor = document.getElementById("contenedorMetodoPago");
+            const selectMetodo = document.getElementById("metodo_pago");
+
+            if (tipo === "Particular") {
+                contenedor.classList.remove("hidden");
+                selectMetodo.required = true;
+            } else {
+                contenedor.classList.add("hidden");
+                selectMetodo.required = false;
+                selectMetodo.value = "";
+            }
+        }
+
+        $(document.body).ready(function() {
+            $('#selectInsumo').select2({
+                placeholder: "Escribe para buscar insumo o SKU...",
+                allowClear: true,
+                width: '100%',
+                dropdownParent: $('#modalNotaVenta')
+            });
+        });
+
+        document.getElementById('sidebarToggle').addEventListener('click', () => {
+            document.getElementById('appShell').classList.toggle('sidebar-collapsed');
+        });
+
+        function agregarEquipo() {
+            const contenedor = document.getElementById("contenedorEquipos");
+            const div = document.createElement("div");
+            div.className = "flex gap-2";
+            div.innerHTML = `
+                <input type="text" name="equipos_manuales[]" placeholder="Ej. Equipo adicional" class="w-full border rounded p-2">
+                <button type="button" onclick="this.parentElement.remove()" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded">❌</button>
+            `;
+            contenedor.appendChild(div);
+        }
+
+        function agregarConsumible() {
+            const sku = $('#selectInsumo').val();
+            const cantidad = parseInt(document.getElementById("cantidadInsumo").value);
+
+            if (!sku || !kardexInventario[sku]) return alert("Selecciona un insumo de la lista.");
+            if (isNaN(cantidad) || cantidad <= 0) return alert("Ingresa una cantidad válida.");
+
+            const info = kardexInventario[sku];
+            const existente = consumiblesSeleccionados.find(i => i.sku === sku);
+
+            if (existente) {
+                existente.cantidad += cantidad;
+            } else {
+                consumiblesSeleccionados.push({
+                    sku: sku,
+                    nombre: info.nombre,
+                    cantidad: cantidad,
+                    stock: info.stock
+                });
+            }
+
+            renderizarConsumibles();
+            $('#selectInsumo').val(null).trigger('change');
+            document.getElementById("cantidadInsumo").value = 1;
+        }
+
+        function renderizarConsumibles() {
+            const tbody = document.getElementById("tablaConsumiblesBody");
+            tbody.innerHTML = "";
+
+            if (consumiblesSeleccionados.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-gray-400">Sin consumibles agregados.</td></tr>`;
+                return;
+            }
+
+            consumiblesSeleccionados.forEach((item, index) => {
+                const suficiente = item.stock >= item.cantidad;
+                const badge = suficiente
+                    ? `<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded font-bold">Disponible (${item.stock})</span>`
+                    : `<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded font-bold">Faltan ${item.cantidad - item.stock}</span>`;
+
+                const tr = document.createElement("tr");
+                tr.className = "border-b text-sm";
+                tr.innerHTML = `
+                    <td class="p-2 border"><strong>[${item.sku}]</strong> ${item.nombre}
+                        <input type="hidden" name="consumible_sku[]" value="${item.sku}">
+                    </td>
+                    <td class="p-2 border text-center font-bold">
+                        <input type="hidden" name="consumible_cantidad[]" value="${item.cantidad}">
+                        ${item.cantidad}
+                    </td>
+                    <td class="p-2 border text-center">${item.stock}</td>
+                    <td class="p-2 border text-center">${badge}</td>
+                    <td class="p-2 border text-center">
+                        <button type="button" onclick="consumiblesSeleccionados.splice(${index}, 1); renderizarConsumibles();" class="text-red-600 font-bold">❌</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+    </script>
+</body>
+</html>

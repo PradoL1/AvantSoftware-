@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Inventarios AVANT - Panel Maestro</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        <style>
+    /* Marca de agua de fondo para el área principal */
+    .main-content-watermark {
+        position: relative;
+        background-color: #f8f9fa; /* Color de fondo claro */
+    }
+
+    .main-content-watermark::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-image: url("{{ url_for('static', filename='logo_avant.png') }}");
+        background-repeat: no-repeat;
+        background-position: center center;
+        background-size: 450px auto; /* Tamaño de la marca de agua */
+        opacity: 0.08; /* Transparencia tenue para que no interfiera con el texto */
+        pointer-events: none; /* Permite hacer clic a través de la imagen */
+        z-index: 0;
+    }
+
+    /* Asegura que el contenido quede por encima de la marca de agua */
+    .main-content-watermark > * {
+        position: relative;
+        z-index: 1;
+    }
+        body { background-color: #f4f6f9; margin: 0; }
+        .app-shell { min-height: 100vh; }
+        .app-shell .app-sidebar {
+            position: fixed; left: 0; top: 0; bottom: 0; width: 220px; background: linear-gradient(180deg, #111827 0%, #0f172a 100%); color: #fff; padding: 1rem 0.8rem; z-index: 1000; transition: width 0.25s ease;
+        }
+        .app-shell.sidebar-collapsed .app-sidebar { width: 80px; }
+        .app-shell.sidebar-collapsed .nav-label, .app-shell.sidebar-collapsed .brand-text { opacity: 0; width: 0; overflow: hidden; pointer-events: none; }
+        .app-shell.sidebar-collapsed .nav-link { justify-content: center; }
+        .app-shell.sidebar-collapsed .brand { justify-content: center; }
+        .app-shell.sidebar-collapsed .sidebar-toggle-btn { transform: rotate(180deg); }
+        .app-sidebar .brand { display: flex; align-items: center; gap: 0.7rem; font-weight: 800; font-size: 1.2rem; margin-bottom: 1rem; color: #f8fafc; }
+        .app-sidebar .brand i { color: #60a5fa; }
+        .app-sidebar .nav-link {
+            display: flex; align-items: center; gap: 0.7rem; color: rgba(255,255,255,.8); text-decoration: none; padding: 0.7rem 0.9rem; border-radius: 10px; margin-bottom: 0.35rem; white-space: nowrap;
+        }
+        .app-sidebar .nav-link:hover, .app-sidebar .nav-link.active { background-color: rgba(96,165,250,0.18); color: white; }
+        .app-sidebar .nav-link i { width: 18px; text-align: center; }
+        .shell-content { margin-left: 220px; padding: 1rem 1.2rem; transition: margin-left 0.25s ease; }
+        .app-shell.sidebar-collapsed .shell-content { margin-left: 80px; }
+        .card { border-radius: 10px; border: none; }
+        .carrito-box { background-color: #eef2f7; border: 2px dashed #0d6efd; border-radius: 10px; }
+        .sidebar-toggle-btn { border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.04); color: white; border-radius: 8px; width: 36px; height: 36px; transition: all 0.2s ease; }
+        @media print {
+            .no-print { display: none !important; }
+            .table-mini th, .table-mini td { border: 1px solid #000 !important; color: #000 !important; }
+        }
+        @media (max-width: 991px) {
+            .shell-content { margin-left: 0; padding: 0.75rem; }
+            .app-shell .app-sidebar { position: static; width: 100%; }
+            .app-shell.sidebar-collapsed .app-sidebar { width: 100%; }
+            .app-shell.sidebar-collapsed .shell-content { margin-left: 0; }
+            .app-shell.sidebar-collapsed .nav-label, .app-shell.sidebar-collapsed .brand-text { opacity: 1; width: auto; }
+        }
+    </style>
+</head>
+<body>
+<div class="app-shell" id="appShell">
+    {% include '_sidebar.html' %}
+    <div class="shell-content">
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4 shadow-sm no-print">
+    <div class="container-fluid">
+        <span class="navbar-brand fw-bold mb-0">Inventarios AVANT</span>
+    </div>
+</nav>
+
+<div class="container-fluid px-5">
+
+    {% if mensaje %}
+    <div class="alert alert-warning alert-dismissible fade show shadow-sm fw-bold border-dark no-print" role="alert">
+        {{ mensaje }} <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endif %}
+
+    <div class="row mb-4 no-print">
+        <div class="col-md-6 mb-2">
+            <button class="btn btn-dark w-100 py-3 fs-5 fw-bold shadow" onclick="mostrarAlmacen()" id="btn_almacen">📦 MODO ALMACÉN / AJUSTES</button>
+        </div>
+        <div class="col-md-6 mb-2">
+            <button class="btn btn-outline-primary w-100 py-3 fs-5 fw-bold shadow" onclick="mostrarQuirofano()" id="btn_quirofano">🏥 MODO CARRITO / VALES</button>
+        </div>
+    </div>
+
+    <!-- MODO ALMACÉN -->
+    <div id="pantalla_almacen" class="no-print" style="display: block;">
+        <div class="card shadow-lg mb-4">
+            <div class="card-header bg-dark text-white"><h5 class="mb-0">Movimiento Individual</h5></div>
+            <div class="card-body p-4">
+                <form action="/guardar" method="POST" onsubmit="document.getElementById('btnGuardarIndividual').disabled=true; document.getElementById('btnGuardarIndividual').innerText='⏳ GUARDANDO...';">
+                    <div class="row mb-3">
+                        <div class="col-md-2">
+                            <label class="fw-bold">Movimiento</label>
+                            <select class="form-select border-primary" name="tipo_mov" id="mov_tipo" onchange="verificarEntrada()" required>
+                                <option value="ENTRADA">Entrada</option>
+                                <option value="SALIDA">Salida</option>
+                                <option value="TRANSFERENCIA">Traspaso</option>
+                                <option value="AJUSTE ENTRADA">Ajuste (Suma)</option>
+                                <option value="AJUSTE SALIDA">Ajuste (Resta)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="fw-bold">SKU</label>
+                            <input type="text" class="form-control" name="sku" id="mov_sku" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="fw-bold">Nombre</label>
+                            <input type="text" class="form-control" name="nombre" id="mov_nombre" required>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="fw-bold text-info" id="lbl_proveedor">Proveedor</label>
+                            <input type="text" class="form-control border-info" name="proveedor" id="mov_proveedor" placeholder="Requerido" required>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="fw-bold text-danger">Operador</label>
+                            <input type="text" class="form-control border-danger" name="usuario" placeholder="TU NOMBRE" required>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-2">
+                            <label class="fw-bold text-primary">CANTIDAD</label>
+                            <input type="number" step="1" min="1" class="form-control border-primary fw-bold" name="cantidad" placeholder="1, 5..." required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="fw-bold">Origen</label>
+                            <select class="form-select" name="almacen_origen" id="mov_almacen_origen">
+                                <option value="Central">Central</option>
+                                <option value="Operaciones">Operaciones</option>
+                                <option value="Resteril">Resteril</option>
+                                <option value="Transición">Transición</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="fw-bold">Destino</label>
+                            <select class="form-select" name="almacen_destino">
+                                <option value="Central">Central</option>
+                                <option value="Operaciones">Operaciones</option>
+                                <option value="Resteril">Resteril</option>
+                                <option value="Transición">Transición</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="fw-bold text-success">Nuevo Costo U.</label>
+                            <input type="number" step="0.01" class="form-control border-success" name="importe" id="mov_importe">
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end" id="caja_pin" style="display: none;">
+                            <input type="password" class="form-control border-danger fw-bold" name="pin_admin" id="mov_pin_admin" placeholder="PIN AJUSTE">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-10">
+                            <input type="text" class="form-control" name="observaciones" placeholder="Observaciones / Folio">
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="submit" id="btnGuardarIndividual" class="btn btn-dark w-100 shadow-sm">💾 GUARDAR</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <div class="card shadow-sm border-success mb-4">
+            <div class="card-body bg-light">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h5 class="text-success fw-bold mb-0">🚀 Carga Masiva Múltiple (Excel .xlsx)</h5>
+                    <a href="/descargar_plantilla" class="btn btn-sm btn-outline-success fw-bold">📥 Bajar Plantilla Nueva</a>
+                </div>
+                <form action="/cargar_layout" method="POST" enctype="multipart/form-data" class="d-flex align-items-center gap-3" onsubmit="document.getElementById('btnSubirExcel').disabled=true; document.getElementById('btnSubirExcel').innerText='⏳ SUBIENDO...';">
+                    <input type="text" name="usuario_layout" class="form-control w-25 border-success" placeholder="Operador Masivo" required>
+                    <input type="password" name="pin_admin_layout" class="form-control w-25 border-danger" placeholder="PIN (Solo si hay Ajustes)">
+                    <input type="file" class="form-control border-success w-50" name="archivo_excel" accept=".xlsx" required>
+                    <button type="submit" id="btnSubirExcel" class="btn btn-success text-white fw-bold shadow-sm">Subir Excel</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODO CARRITO -->
+    <div id="pantalla_quirofano" style="display: none;" class="no-print">
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card shadow-lg p-3">
+                    <h5 class="text-primary fw-bold">🔍 Escanear</h5>
+                    <input type="text" class="form-control mb-2 border-primary" id="vale_sku" placeholder="SKU" onblur="buscarSKUCarrito()">
+                    <input type="text" class="form-control bg-light mb-2 text-primary fw-bold" id="vale_nombre" readonly placeholder="Nombre del insumo...">
+                    <div class="row">
+                        <div class="col-6">
+                            <input type="number" step="1" min="1" class="form-control border-primary fw-bold" id="vale_cantidad" placeholder="Cant">
+                        </div>
+                        <div class="col-6">
+                            <select class="form-select" id="vale_almacen">
+                                <option value="Central">Central</option>
+                                <option value="Operaciones">Operaciones</option>
+                                <option value="Resteril">Resteril</option>
+                                <option value="Transición">Transición</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button class="btn btn-warning w-100 mt-2 fw-bold" id="btn_add_carrito" onclick="agregarAlCarritoAsync()">➕ AÑADIR</button>
+                </div>
+            </div>
+
+            <div class="col-md-9">
+                <div class="card shadow-lg carrito-box p-3">
+                    <div class="row mb-2">
+                        <div class="col-md-3">
+                            <select class="form-select fw-bold border-primary" id="vale_tipo_operacion" onchange="cambiarTipoOperacion()">
+                                <option value="SALIDA">Salida a Paciente</option>
+                                <option value="TRANSFERENCIA">Traspaso</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <input type="text" class="form-control" id="vale_folio" placeholder="Folio">
+                        </div>
+                        <div class="col-md-3" id="caja_paciente">
+                            <input type="text" class="form-control" id="vale_paciente" placeholder="Paciente">
+                        </div>
+                        <div class="col-md-3" id="caja_destino_traspaso" style="display: none;">
+                            <select class="form-select border-success" id="vale_destino_traspaso">
+                                <option value="Operaciones">Operaciones</option>
+                                <option value="Resteril">Resteril</option>
+                                <option value="Transición">Transición</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <input type="text" class="form-control border-danger" id="vale_usuario" placeholder="TU NOMBRE" required>
+                        </div>
+                    </div>
+                    <table class="table table-sm bg-white mt-2 align-middle text-center">
+                        <thead class="table-dark">
+                            <tr><th>SKU</th><th class="text-start">Nombre</th><th>Origen</th><th>Cant</th><th class="text-warning">Costo (Editable)</th><th>Total</th><th>X</th></tr>
+                        </thead>
+                        <tbody id="cuerpo_carrito">
+                            <tr><td colspan="7" class="text-muted py-3"><em>El carrito está vacío.</em></td></tr>
+                        </tbody>
+                    </table>
+                    <button class="btn btn-success w-100 fw-bold shadow mt-2" id="btn_ejecutar_vale" onclick="generarValeSalida()">✅ EJECUTAR E IMPRIMIR</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TABLA MAESTRA FINANCIERA -->
+    <div class="mt-2 mb-5" id="zona_impresion">
+        <div class="d-flex justify-content-between align-items-end mb-3 no-print">
+            <div>
+                <h4 class="fw-bold mb-1">📦 Inventario Financiero Corporativo</h4>
+                {% set gran_total = namespace(value=0) %}
+                {% for item in inventario %}
+                    {% set val_cen = item[4] * item[8] %}
+                    {% set val_ope = item[5] * item[9] %}
+                    {% set val_res = item[6] * item[10] %}
+                    {% set val_tra = item[7] * item[11] %}
+                    {% set gran_total.value = gran_total.value + val_cen + val_ope + val_res + val_tra %}
+                {% endfor %}
+                <h5 class="text-success fw-bold mb-0">💰 VALOR TOTAL BODEGA: ${{ "{:,.2f}".format(gran_total.value) }}</h5>
+            </div>
+
+            <div class="d-flex gap-3 align-items-end">
+                <div>
+                    <button onclick="crearArticuloNuevo()" class="btn btn-primary fw-bold shadow-sm">➕ Artículo Nuevo</button>
+                </div>
+                <div style="width: 300px;">
+                    <input type="text" id="buscador_inventario" class="form-control border-primary shadow-sm fw-bold text-primary" placeholder="🔍 Buscar SKU o Nombre..." onkeyup="filtrarInventario()">
+                </div>
+                <div class="d-flex gap-2">
+                    <button onclick="imprimirTablaMaestra()" class="btn btn-sm btn-secondary fw-bold shadow-sm">🖨️ Imprimir Inventario</button>
+                    <a href="/exportar_inventario" class="btn btn-sm btn-success fw-bold shadow-sm">📥 Excel Nativo (.xlsx)</a>
+                </div>
+            </div>
+        </div>
+        <div class="table-responsive shadow-sm border rounded">
+            <table id="tabla_inventario" class="table table-sm table-hover bg-white mb-0 text-center align-middle table-mini">
+                <thead class="table-dark">
+                    <tr>
+                        <th rowspan="2">SKU</th><th rowspan="2" class="text-start">Insumo</th><th rowspan="2">TOTAL PZAS</th>
+                        <th colspan="4" class="bg-secondary">Piezas x Almacén</th>
+                        <th rowspan="2" class="bg-success text-white">💰 Valor Financiero Real (Costo x Capa)</th>
+                        <th rowspan="2" class="no-print">Acciones</th>
+                    </tr>
+                    <tr class="bg-light text-dark"><th>Central</th><th>Oper</th><th>Rester</th><th>Transi</th></tr>
+                </thead>
+                <tbody id="cuerpo_inventario">
+                    {% for item in inventario %}
+                    {% set val_linea = (item[4] * item[8]) + (item[5] * item[9]) + (item[6] * item[10]) + (item[7] * item[11]) %}
+                    <tr class="fila-articulo">
+                        <td><strong>{{ item[0] }}</strong></td>
+                        <td class="text-start">{{ item[1] }}</td>
+                        <td class="fw-bold text-primary fs-5">{{ item[2] }}</td>
+                        <td class="text-success fw-bold">{{ item[4] }}</td>
+                        <td class="text-info fw-bold">{{ item[5] }}</td>
+                        <td class="text-danger fw-bold">{{ item[6] }}</td>
+                        <td class="text-secondary fw-bold">{{ item[7] }}</td>
+                        <td class="fw-bold text-success fs-6">${{ "{:,.2f}".format(val_linea) }}</td>
+                        <td class="no-print">
+                            <div class="d-flex gap-1 justify-content-center">
+                                <button class="btn btn-sm btn-outline-primary" onclick="editarInsumoCatalogo('{{ item[0] }}', '{{ item[1] }}')" title="Editar Nombre">✏️</button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="borrarInsumoCatalogo('{{ item[0] }}')" title="Eliminar SKU">🗑️</button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL PIN SEGURO -->
+<div class="modal fade no-print" id="modalPinSeguro" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content border-danger shadow-lg">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title fw-bold">🔒 Seguridad AVANT</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center p-4">
+        <p id="modalPinMensaje" class="mb-3 fw-bold text-dark">Ingresa tu PIN</p>
+        <input type="password" id="inputPinSeguro" class="form-control form-control-lg text-center fw-bold border-danger mb-3" placeholder="******">
+        <button type="button" id="btnConfirmarPin" class="btn btn-danger w-100 fw-bold shadow-sm">CONFIRMAR</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+    if (window.history.replaceState) {
+        window.history.replaceState(null, null, window.location.href);
+    }
+
+    let pinResolver = null;
+    let modalPinInstance = null;
+
+    function pedirPinSeguro(mensaje) {
+        return new Promise((resolve) => {
+            document.getElementById('modalPinMensaje').innerText = mensaje;
+            let inputPin = document.getElementById('inputPinSeguro');
+            inputPin.value = '';
+
+            if (!modalPinInstance) {
+                modalPinInstance = new bootstrap.Modal(document.getElementById('modalPinSeguro'));
+            }
+
+            pinResolver = resolve;
+            modalPinInstance.show();
+
+            document.getElementById('modalPinSeguro').addEventListener('shown.bs.modal', function () {
+                inputPin.focus();
+            }, { once: true });
+        });
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        document.getElementById('btnConfirmarPin').addEventListener('click', function() {
+            if (pinResolver) {
+                pinResolver(document.getElementById('inputPinSeguro').value);
+                pinResolver = null;
+                modalPinInstance.hide();
+            }
+        });
+
+        document.getElementById('inputPinSeguro').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (pinResolver) {
+                    pinResolver(this.value);
+                    pinResolver = null;
+                    modalPinInstance.hide();
+                }
+            }
+        });
+
+        document.getElementById('modalPinSeguro').addEventListener('hidden.bs.modal', function () {
+            if (pinResolver) {
+                pinResolver(null);
+                pinResolver = null;
+            }
+        });
+    });
+
+    async function crearArticuloNuevo() {
+        let pin = await pedirPinSeguro("PIN Administrador para Crear Artículo:");
+        if (!pin) return;
+
+        let sku = prompt("📦 Ingresa el SKU (Clave) del nuevo artículo:");
+        if (!sku) return;
+
+        let nombre = prompt("📝 Ingresa el NOMBRE / DESCRIPCIÓN del artículo:");
+        if (!nombre) return;
+
+        let costoStr = prompt("💰 Ingresa el COSTO UNITARIO base (opcional, deja en 0 si no sabes):", "0");
+        let costo = parseFloat(costoStr) || 0;
+
+        fetch('/crear_insumo', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ pin: pin, sku: sku, nombre: nombre, costo: costo })
+        })
+        .then(r => r.json())
+        .then(d => {
+            alert(d.mensaje);
+            if(d.success) window.location.reload();
+        });
+    }
+
+    async function editarInsumoCatalogo(sku, nombreActual) {
+        let pin = await pedirPinSeguro("PIN Administrador para Editar SKU:");
+        if(!pin) return;
+
+        let nuevoNombre = prompt("📝 Ingresa el NUEVO NOMBRE para el SKU " + sku + ":", nombreActual);
+        if(!nuevoNombre || nuevoNombre.trim() === "") return;
+
+        fetch('/editar_insumo/' + sku, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({pin: pin, nuevo_nombre: nuevoNombre.trim()})
+        })
+        .then(r => r.json())
+        .then(d => {
+            alert(d.mensaje);
+            if(d.success) window.location.reload();
+        });
+    }
+
+    function mostrarAlmacen() {
+        document.getElementById('pantalla_almacen').style.display='block';
+        document.getElementById('pantalla_quirofano').style.display='none';
+        document.getElementById('btn_almacen').className='btn btn-dark w-100 py-3 fs-5 fw-bold shadow';
+        document.getElementById('btn_quirofano').className='btn btn-outline-primary w-100 py-3 fs-5 fw-bold shadow';
+    }
+
+    function mostrarQuirofano() {
+        document.getElementById('pantalla_almacen').style.display='none';
+        document.getElementById('pantalla_quirofano').style.display='block';
+        document.getElementById('btn_almacen').className='btn btn-outline-dark w-100 py-3 fs-5 fw-bold shadow';
+        document.getElementById('btn_quirofano').className='btn btn-primary w-100 py-3 fs-5 fw-bold shadow';
+    }
+
+    function cambiarTipoOperacion() {
+        let t = document.getElementById('vale_tipo_operacion').value;
+        document.getElementById('caja_paciente').style.display = t === 'SALIDA' ? 'block' : 'none';
+        document.getElementById('caja_destino_traspaso').style.display = t === 'TRANSFERENCIA' ? 'block' : 'none';
+    }
+
+    function verificarEntrada() {
+        let t = document.getElementById('mov_tipo').value;
+        let p = document.getElementById('mov_proveedor');
+        let pinBox = document.getElementById('caja_pin');
+        let pinInp = document.getElementById('mov_pin_admin');
+        let lblProv = document.getElementById('lbl_proveedor');
+
+        if(t === 'ENTRADA' || t === 'AJUSTE ENTRADA') {
+            p.required = true; p.disabled = false; p.placeholder = "Nombre Proveedor / Justificación";
+            lblProv.innerText = "Prov/Justificación";
+        } else {
+            p.required = false; p.disabled = true; p.value = ""; p.placeholder = "No aplica";
+            lblProv.innerText = "Proveedor";
+        }
+
+        if(t.includes('AJUSTE')) {
+            pinBox.style.display = 'block'; pinInp.required = true;
+        } else {
+            pinBox.style.display = 'none'; pinInp.required = false; pinInp.value = '';
+        }
+    }
+
+    function filtrarInventario() {
+        let input = document.getElementById("buscador_inventario").value.toUpperCase();
+        let filas = document.getElementsByClassName("fila-articulo");
+        for (let i = 0; i < filas.length; i++) {
+            let tdSku = filas[i].getElementsByTagName("td")[0];
+            let tdNombre = filas[i].getElementsByTagName("td")[1];
+            if (tdSku || tdNombre) {
+                let textoSku = tdSku.textContent || tdSku.innerText;
+                let textoNombre = tdNombre.textContent || tdNombre.innerText;
+                if (textoSku.toUpperCase().indexOf(input) > -1 || textoNombre.toUpperCase().indexOf(input) > -1) {
+                    filas[i].style.display = "";
+                } else {
+                    filas[i].style.display = "none";
+                }
+            }
+        }
+    }
+
+    async function borrarInsumoCatalogo(sku) {
+        let pin = await pedirPinSeguro("PIN Administrador para borrar SKU:");
+        if(!pin) return;
+        fetch('/borrar_insumo/' + sku, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({pin: pin}) })
+        .then(r => r.json()).then(d => { alert(d.mensaje); if(d.success) window.location.reload(); });
+    }
+
+    function actualizarCostoIndividual() {
+        let s = document.getElementById('mov_sku').value.trim().toUpperCase();
+        let a = document.getElementById('mov_almacen_origen').value;
+        if(s) {
+            fetch('/info_carrito/' + encodeURIComponent(s) + '/' + encodeURIComponent(a))
+            .then(r => r.json())
+            .then(d => {
+                if(d.encontrado) {
+                    document.getElementById('mov_nombre').value = d.nombre;
+                    document.getElementById('mov_importe').value = d.costo > 0 ? d.costo : '';
+                } else {
+                    document.getElementById('mov_nombre').value = '❌ NO ENCONTRADO';
+                    document.getElementById('mov_importe').value = '';
+                }
+            }).catch(e => { console.error("Error:", e); });
+        } else {
+            document.getElementById('mov_nombre').value = '';
+            document.getElementById('mov_importe').value = '';
+        }
+    }
+
+    let carrito = [];
+
+    function buscarSKUCarrito() {
+        let s = document.getElementById('vale_sku').value.trim().toUpperCase();
+        if(s) fetch('/buscar_sku/'+ encodeURIComponent(s)).then(r=>r.json()).then(d=>{ document.getElementById('vale_nombre').value = d.encontrado ? d.nombre : '❌ NO ENCONTRADO'; });
+    }
+
+    async function agregarAlCarritoAsync() {
+        let btn = document.getElementById('btn_add_carrito');
+        let s = document.getElementById('vale_sku').value.trim().toUpperCase();
+        let c_str = document.getElementById('vale_cantidad').value;
+        let a = document.getElementById('vale_almacen').value;
+        let c = Number(c_str);
+
+        if(!s || c <= 0 || !Number.isInteger(c)) { alert("⚠️ NÚMEROS ENTEROS ÚNICAMENTE y asegúrate de poner un SKU."); return; }
+
+        btn.disabled = true; btn.innerHTML = "⏳...";
+        try {
+            let respuesta = await fetch('/info_carrito/' + encodeURIComponent(s) + '/' + encodeURIComponent(a));
+            let data = await respuesta.json();
+            if(data.encontrado) {
+                let cantidadEnCarrito = 0;
+                carrito.forEach(item => { if (item.sku === s && item.almacen === a) { cantidadEnCarrito += item.cantidad; } });
+
+                if ((c + cantidadEnCarrito) > data.stock) {
+                    alert(`❌ ALTO AHÍ:\nNo hay suficiente inventario en ${a}.\nFísicamente hay: ${data.stock}`);
+                } else {
+                    let costo = parseFloat(data.costo || 0);
+                    carrito.push({ sku: s, nombre: data.nombre, cantidad: c, almacen: a, costo: costo, total: c * costo });
+                    document.getElementById('vale_sku').value = '';
+                    document.getElementById('vale_cantidad').value = '';
+                    document.getElementById('vale_nombre').value = '';
+                    actualizarTablaCarrito();
+                    document.getElementById('vale_sku').focus();
+                }
+            } else { alert("❌ ERROR: El SKU no existe."); }
+        } catch (error) { alert("⚠️ Error de red."); }
+        finally { btn.disabled = false; btn.innerHTML = "➕ AÑADIR"; }
+    }
+
+    function modificarCostoFila(index, nuevoValor) {
+        let n = parseFloat(nuevoValor) || 0;
+        carrito[index].costo = n;
+        carrito[index].total = carrito[index].cantidad * n;
+        actualizarTablaCarrito();
+    }
+
+    function actualizarTablaCarrito() {
+        let b = document.getElementById('cuerpo_carrito');
+        b.innerHTML = '';
+        let granTotal = 0;
+
+        if(carrito.length === 0) {
+            b.innerHTML = '<tr><td colspan="7" class="text-muted py-3"><em>El carrito está vacío.</em></td></tr>';
+            return;
+        }
+
+        carrito.forEach((it, i) => {
+            granTotal += it.total;
+            let fila = `<tr>
+                <td class="fw-bold text-primary">${it.sku}</td>
+                <td class="text-start">${it.nombre}</td>
+                <td><span class="badge bg-secondary">${it.almacen}</span></td>
+                <td class="fw-bold">${it.cantidad}</td>
+                <td style="width: 120px;">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-light">$</span>
+                        <input type="number" step="0.01" class="form-control fw-bold text-end border-warning" value="${it.costo.toFixed(2)}" onchange="modificarCostoFila(${i}, this.value)">
+                    </div>
+                </td>
+                <td class="fw-bold text-success">$${it.total.toFixed(2)}</td>
+                <td><button class="btn btn-sm btn-outline-danger" onclick="carrito.splice(${i},1);actualizarTablaCarrito()">X</button></td>
+            </tr>`;
+            b.innerHTML += fila;
+        });
+        b.innerHTML += `<tr><td colspan="5" class="text-end fw-bold">TOTAL OPERACIÓN:</td><td colspan="2" class="text-danger fw-bold fs-5">$${granTotal.toFixed(2)}</td></tr>`;
+    }
+
+    function imprimirFormato(folio, paciente, tipo_operacion, destino, carritoGuardado, operaciones_ids) {
+        let fecha = new Date().toLocaleString('es-MX'); let filasHTML = ''; let granTotal = 0;
+        let op_numeros = operaciones_ids ? operaciones_ids.join(', #') : '';
+
+        carritoGuardado.forEach(item => {
+            granTotal += item.total;
+            filasHTML += `<tr><td style="text-align: center;"><strong>${item.sku}</strong></td><td>${item.nombre}</td><td style="text-align: center;">${item.almacen}</td><td style="text-align: center; font-weight:bold;">${item.cantidad}</td><td style="text-align: right;">$${item.costo.toFixed(2)}</td><td style="text-align: right; font-weight:bold; color: #198754;">$${item.total.toFixed(2)}</td></tr>`;
+        });
+
+        let titulo = tipo_operacion === 'TRANSFERENCIA' ? "Comprobante de Traspaso Interno" : "Vale de Salida (Costo de Ventas)";
+        let subtitulo = tipo_operacion === 'TRANSFERENCIA' ? `<strong>Destino:</strong> ${destino}` : `<strong>Paciente:</strong> ${paciente}`;
+
+        let hoja = `
+        <style>
+            @page { size: letter portrait; margin: 15mm; }
+            body { font-family: Arial, sans-serif; color: #000; background: #fff; margin: 0; padding: 0; box-sizing: border-box; }
+            .print-wrapper { width: 100%; max-width: 100%; overflow: hidden; }
+            table { width: 100%; max-width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 13px; word-wrap: break-word; }
+            th, td { border: 1px solid #000; padding: 6px; }
+            th { background-color: #f0f0f0; text-align: center; }
+        </style>
+        <div class="print-wrapper">
+            <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px;">
+                <h2 style="margin: 0; color: #0d6efd;">🏥 INVENTARIOS AVANT</h2>
+                <h4 style="margin: 5px 0; color: #555;">${titulo}</h4>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 1rem;">
+                <div>
+                    <p style="margin: 2px 0;"><strong>Operaciones #:</strong> ${op_numeros}</p>
+                    <p style="margin: 2px 0;"><strong>Folio Doc:</strong> ${folio}</p>
+                    <p style="margin: 2px 0;">${subtitulo}</p>
+                </div>
+                <div style="text-align: right;"><p style="margin: 2px 0;"><strong>Fecha:</strong> <br>${fecha}</p></div>
+            </div>
+            <table>
+                <thead><tr><th>SKU</th><th>Descripción</th><th>Origen</th><th>Cant.</th><th>Costo U.</th><th>Total</th></tr></thead>
+                <tbody>${filasHTML}</tbody>
+                <tfoot><tr><td colspan="5" style="text-align: right; padding: 8px; font-size: 1.1rem;"><strong>GRAN TOTAL:</strong></td><td style="text-align: right; color: #dc3545; font-size: 1.2rem; font-weight: bold;">$${granTotal.toFixed(2)}</td></tr></tfoot>
+            </table>
+            <div style="margin-top: 60px; text-align: center;"><p style="margin: 0;">___________________________________</p><p style="margin-top: 5px; font-weight: bold;">Firma</p></div>
+        </div>`;
+        let ori = document.body.innerHTML; document.body.innerHTML = hoja; window.print(); document.body.innerHTML = ori; window.location.reload();
+    }
+
+    function generarValeSalida() {
+        let u = document.getElementById('vale_usuario').value; if(!u){alert("Pon tu nombre en la casilla de Operador"); return;}
+        if(carrito.length === 0){alert("⚠️ El carrito está vacío"); return;}
+        let tipo = document.getElementById('vale_tipo_operacion').value;
+        let folio = document.getElementById('vale_folio').value;
+        let paci = document.getElementById('vale_paciente').value;
+        let dest = document.getElementById('vale_destino_traspaso').value;
+
+        let p = { tipo_operacion: tipo, folio: folio, paciente: paci, almacen_destino_traspaso: dest, usuario: u, articulos: carrito };
+        let copy = [...carrito];
+
+        let btn = document.getElementById('btn_ejecutar_vale');
+        btn.disabled = true;
+        btn.innerText = "⏳ PROCESANDO...";
+
+        fetch('/guardar_vale', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(p) })
+        .then(r => r.json())
+        .then(d => {
+            btn.disabled = false;
+            btn.innerText = "✅ EJECUTAR E IMPRIMIR";
+            if(d.success) { imprimirFormato(folio, paci, tipo, dest, copy, d.operaciones); }
+            else { alert(d.mensaje); }
+        }).catch(e => {
+            btn.disabled = false;
+            btn.innerText = "✅ EJECUTAR E IMPRIMIR";
+            alert("⚠️ Error de conexión. Intenta de nuevo.");
+        });
+    }
+
+    function imprimirTablaMaestra() {
+        let tabla = document.getElementById('tabla_inventario').outerHTML;
+        let fecha = new Date().toLocaleString('es-MX');
+
+        let hoja = `
+        <style>
+            @page { size: landscape; margin: 10mm; }
+            body { font-family: Arial, sans-serif; color: #000; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 20px; }
+            th, td { border: 1px solid #000 !important; padding: 5px; color: #000 !important; text-align: center; }
+            th { background-color: #f0f0f0 !important; }
+            .no-print { display: none !important; }
+        </style>
+        <div style="width: 100%;">
+            <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px;">
+                <h1 style="color: #0d6efd; margin: 0;">🏥 INVENTARIOS AVANT</h1>
+                <h3 style="color: #555; margin: 5px 0;">Reporte de Inventario Financiero Corporativo</h3>
+            </div>
+            <div style="text-align: right; margin-bottom: 20px; font-size: 1.1rem;"><p><strong>Fecha de Generación:</strong> ${fecha}</p></div>
+            ${tabla}
+            <div style="margin-top: 50px; text-align: center;"><p>___________________________________</p><p style="font-weight: bold;">Firma del Auditor</p></div>
+        </div>`;
+
+        let ori = document.body.innerHTML;
+        document.body.innerHTML = hoja;
+        window.print();
+        document.body.innerHTML = ori;
+        window.location.reload();
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        document.getElementById('mov_sku').addEventListener('blur', actualizarCostoIndividual);
+        document.getElementById('mov_almacen_origen').addEventListener('change', actualizarCostoIndividual);
+        verificarEntrada();
+    });
+</script>
+
+{% if carga_data %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        let datosCargados = {{ carga_data | tojson | safe }};
+        let fecha = new Date().toLocaleString('es-MX');
+        let filasHTML = ''; let granTotal = 0;
+
+        datosCargados.forEach(item => {
+            let c = (item.costo !== null && item.costo !== undefined) ? parseFloat(item.costo) : 0;
+            let t = (item.total !== null && item.total !== undefined) ? parseFloat(item.total) : 0;
+            let prov_folio = item.tipo.includes('ENTRADA') ? (item.proveedor || '-') : (item.folio || '-');
+            granTotal += t;
+            let badge = item.tipo.includes('ENTRADA') ? 'bg-success' : (item.tipo.includes('SALIDA') ? 'bg-danger' : 'bg-info text-dark');
+            filasHTML += `<tr><td style="text-align: center;"><strong>#${item.op_id}</strong></td><td style="text-align: center;"><strong>${item.sku}</strong></td><td style="text-align: center;"><strong><span class="badge ${badge}">${item.tipo}</span></strong></td><td style="text-align: center; font-size:0.75rem;">${prov_folio}</td><td style="text-align: center;">${item.origen || 'MASIVA'}</td><td style="text-align: center;">${item.destino || 'N/A'}</td><td style="text-align: center; font-weight: bold;">${item.cantidad}</td><td style="text-align: right;">$${c.toFixed(2)}</td><td style="text-align: right; font-weight: bold; color: #198754;">$${t.toFixed(2)}</td></tr>`;
+        });
+
+        let hojaImpresion = `
+        <style>
+            @page { size: letter portrait; margin: 15mm; }
+            body { font-family: Arial, sans-serif; color: #000; background: #fff; width: 100%; box-sizing: border-box; }
+            table { width: 100%; max-width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 11px; word-wrap: break-word; }
+            th, td { border: 1px solid #000; padding: 5px; }
+            th { background-color: #f0f0f0; text-align: center; }
+        </style>
+        <div style="width: 100%; max-width: 100%; overflow: hidden;">
+            <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px;">
+                <h2 style="margin: 0; color: #0d6efd;">🏥 INVENTARIOS AVANT</h2>
+                <h4 style="margin: 5px 0; color: #555;">Comprobante (Carga Masiva / Ajustes)</h4>
+                <p style="margin: 2px 0;"><strong>Fecha:</strong> ${fecha}</p>
+            </div>
+            <table>
+                <thead><tr><th>Op #</th><th>SKU</th><th>Tipo</th><th>Prov / Folio</th><th>Origen</th><th>Destino</th><th>Cant</th><th>Costo U.</th><th>Total</th></tr></thead>
+                <tbody>${filasHTML}</tbody>
+                <tfoot><tr><td colspan="8" style="text-align: right; padding: 8px; font-size: 1.1rem;"><strong>VALOR TOTAL MOVIDO:</strong></td><td style="text-align: right; color: #dc3545; font-size: 1.2rem; font-weight: bold;">$${granTotal.toFixed(2)}</td></tr></tfoot>
+            </table>
+            <div style="margin-top: 40px; text-align: center;"><p>_____________________________________</p><p style="font-weight: bold;">Auditoría</p></div>
+        </div>`;
+        let pantallaOriginal = document.body.innerHTML; document.body.innerHTML = hojaImpresion; window.print(); document.body.innerHTML = pantallaOriginal; window.location.href = "/";
+    });
+</script>
+{% endif %}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    const appShell = document.getElementById('appShell');
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    if (localStorage.getItem('avantSidebarCollapsed') === 'true') {
+        appShell.classList.add('sidebar-collapsed');
+    }
+    sidebarToggle.addEventListener('click', () => {
+        const isCollapsed = appShell.classList.toggle('sidebar-collapsed');
+        localStorage.setItem('avantSidebarCollapsed', String(isCollapsed));
+    });
+</script>
+</body>
+</html>

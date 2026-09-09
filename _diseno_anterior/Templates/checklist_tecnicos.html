@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checklist de Verificación de Equipo - AVANT</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { margin: 0; }
+        .app-shell { min-height: 100vh; }
+        .app-shell .app-sidebar {
+            position: fixed; left: 0; top: 0; bottom: 0; width: 220px; background: linear-gradient(180deg, #111827 0%, #0f172a 100%); color: #fff; padding: 1rem 0.8rem; z-index: 1000; transition: width 0.25s ease;
+        }
+        .app-shell.sidebar-collapsed .app-sidebar { width: 80px; }
+        .app-shell.sidebar-collapsed .nav-label, .app-shell.sidebar-collapsed .brand-text { opacity: 0; width: 0; overflow: hidden; pointer-events: none; }
+        .app-shell.sidebar-collapsed .nav-link { justify-content: center; }
+        .app-shell.sidebar-collapsed .brand { justify-content: center; }
+        .app-shell.sidebar-collapsed .sidebar-toggle-btn { transform: rotate(180deg); }
+        .app-sidebar .brand { display: flex; align-items: center; gap: 0.7rem; font-weight: 800; font-size: 1.2rem; margin-bottom: 1rem; color: #f8fafc; }
+        .app-sidebar .brand i { color: #60a5fa; }
+        .app-sidebar .nav-link { display: flex; align-items: center; gap: 0.7rem; color: rgba(255,255,255,.8); text-decoration: none; padding: 0.7rem 0.9rem; border-radius: 10px; margin-bottom: 0.35rem; white-space: nowrap; }
+        .app-sidebar .nav-link:hover, .app-sidebar .nav-link.active { background-color: rgba(96,165,250,0.18); color: white; }
+        .app-sidebar .nav-link i { width: 18px; text-align: center; }
+        .shell-content { margin-left: 220px; padding: 1rem 1.2rem; transition: margin-left 0.25s ease; }
+        .app-shell.sidebar-collapsed .shell-content { margin-left: 80px; }
+        .sidebar-toggle-btn { border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.04); color: white; border-radius: 8px; width: 36px; height: 36px; transition: all 0.2s ease; }
+        @media print { .no-print { display: none !important; } .print-only { display: block !important; } }
+        @media (max-width: 991px) {
+            .shell-content { margin-left: 0; padding: 0.75rem; }
+            .app-shell .app-sidebar { position: static; width: 100%; }
+            .app-shell.sidebar-collapsed .app-sidebar { width: 100%; }
+            .app-shell.sidebar-collapsed .shell-content { margin-left: 0; }
+            .app-shell.sidebar-collapsed .nav-label, .app-shell.sidebar-collapsed .brand-text { opacity: 1; width: auto; }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 font-sans p-4 md:p-8">
+    <div class="app-shell" id="appShell">
+        {% include '_sidebar.html' %}
+        <div class="shell-content">
+    <!-- BARRA DE NAVEGACIÓN SUPERIOR (Mapeada a tus rutas de Flask) -->
+<nav class="bg-slate-900 text-white p-3 mb-6 no-print">
+    <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-4">
+        <span class="font-bold text-lg text-amber-400">Inventarios AVANT</span>
+    </div>
+</nav>
+
+    <div class="max-w-4xl mx-auto space-y-6 no-print">
+
+        <!-- Encabezado -->
+        <div class="flex justify-between items-center bg-white p-6 rounded-lg shadow-sm border">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800">Checklist de Salida de Equipo</h1>
+                <p class="text-xs text-gray-500">Control de Verificación para Técnicos en Campo</p>
+            </div>
+            <button onclick="abrirModalJefe()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs px-4 py-2 rounded-lg font-semibold">
+                🔑 Modo Jefe de Técnicos
+            </button>
+        </div>
+
+        <!-- Formulario Crear Checklist (Solo Jefe de Técnicos) -->
+        <div id="seccionCrearChecklist" class="hidden bg-white p-6 rounded-lg shadow-sm border border-blue-200">
+            <h2 class="text-lg font-bold text-blue-900 mb-4 border-b pb-2">➕ Crear Nueva Lista de Verificación (Jefe)</h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mb-4">
+                <div>
+                    <label class="block font-semibold mb-1 text-gray-600">Técnico Asignado:</label>
+                    <input type="text" id="chkTecnico" placeholder="Nombre del técnico" class="w-full border p-2 rounded">
+                </div>
+                <div>
+                    <label class="block font-semibold mb-1 text-gray-600">Hospital / Cliente:</label>
+                    <input type="text" id="chkHospital" placeholder="Ej. Bite Médica" class="w-full border p-2 rounded">
+                </div>
+                <div>
+                    <label class="block font-semibold mb-1 text-gray-600">Cirugía / Procedimiento:</label>
+                    <input type="text" id="chkCirugia" placeholder="Ej. Artroscopia" class="w-full border p-2 rounded">
+                </div>
+            </div>
+
+            <!-- Asignación de Equipos y Códigos de Barras -->
+            <div class="mb-4">
+                <label class="block font-semibold mb-2 text-gray-700">Equipos e Insumos Requeridos:</label>
+                <div id="listaEquiposAgregar" class="space-y-2">
+                    <div class="flex gap-2">
+                        <input type="text" placeholder="Nombre del Equipo (ej. Torre HD)" class="eq-nombre w-1/2 border p-2 rounded text-sm">
+                        <input type="text" placeholder="Escanea/Escribe Código de Barras" class="eq-codigo w-1/2 border p-2 rounded text-sm bg-gray-50">
+                    </div>
+                </div>
+                <button onclick="agregarFilaEquipo()" class="mt-2 text-xs text-blue-600 font-bold hover:underline">+ Agregar otro equipo</button>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2 border-t">
+                <button onclick="cerrarModoJefe()" class="bg-gray-300 text-gray-700 px-4 py-2 rounded text-xs font-bold">Cancelar</button>
+                <button onclick="guardarChecklist()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-xs font-bold">Guardar y Asignar Checklist</button>
+            </div>
+        </div>
+
+        <!-- Panel del Técnico (Verificación y Escaneo) -->
+        <div class="bg-white p-6 rounded-lg shadow-sm border">
+            <h2 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2">📋 Listas de Verificación Activas</h2>
+
+            <div id="contenedorChecklists" class="space-y-4">
+                <!-- Se cargan dinámicamente -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Plantilla de Impresión (Oculta en Pantalla) -->
+    <div id="seccionImpresionChecklist" class="hidden print-only p-8 bg-white text-black font-sans">
+        <div class="flex justify-between items-center border-b pb-4 mb-4">
+            <div>
+                <h1 class="text-xl font-bold uppercase">AVANT SOLUCIONES MEDICAS</h1>
+                <p class="text-xs">Hoja de Salida y Liberación de Equipo Médico</p>
+            </div>
+            <div class="text-right text-xs">
+                <p><strong>Folio:</strong> <span id="pFolio"></span></p>
+                <p><strong>Fecha:</strong> <span id="pFecha"></span></p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 text-xs mb-6 border p-3 rounded">
+            <p><strong>Técnico:</strong> <span id="pTecnico"></span></p>
+            <p><strong>Hospital:</strong> <span id="pHospital"></span></p>
+            <p><strong>Cirugía:</strong> <span id="pCirugia"></span></p>
+            <p><strong>Estatus:</strong> <span class="font-bold text-green-700">100% VERIFICADO Y LIBERADO</span></p>
+        </div>
+
+        <table class="w-full text-xs border-collapse border mb-8">
+            <thead>
+                <tr class="bg-gray-100 border-b">
+                    <th class="border p-2 text-left">Equipo / Insumo</th>
+                    <th class="border p-2 text-center">Código de Barras</th>
+                    <th class="border p-2 text-center">Estatus</th>
+                </tr>
+            </thead>
+            <tbody id="pTablaEquipos"></tbody>
+        </table>
+
+        <div class="mt-12 grid grid-cols-2 gap-8 text-center text-xs">
+            <div class="border-t pt-2">Firma Jefe de Equipos</div>
+            <div class="border-t pt-2">Firma Técnico Responsable</div>
+        </div>
+    </div>
+
+    <script>
+        const PIN_JEFE = "1234"; // Cambia este PIN por el que gustes
+
+        function abrirModalJefe() {
+            const pin = prompt("Ingresa el PIN de Jefe de Técnicos:");
+            if (pin === PIN_JEFE) {
+                document.getElementById("seccionCrearChecklist").classList.remove("hidden");
+            } else if (pin !== null) {
+                alert("🔒 PIN incorrecto.");
+            }
+        }
+
+        function cerrarModoJefe() {
+            document.getElementById("seccionCrearChecklist").classList.add("hidden");
+        }
+
+        function agregarFilaEquipo() {
+            const div = document.createElement("div");
+            div.className = "flex gap-2";
+            div.innerHTML = `
+                <input type="text" placeholder="Nombre del Equipo" class="eq-nombre w-1/2 border p-2 rounded text-sm">
+                <input type="text" placeholder="Escanea/Escribe Código de Barras" class="eq-codigo w-1/2 border p-2 rounded text-sm bg-gray-50">
+            `;
+            document.getElementById("listaEquiposAgregar").appendChild(div);
+        }
+
+        function guardarChecklist() {
+            const tecnico = document.getElementById("chkTecnico").value.trim();
+            const hospital = document.getElementById("chkHospital").value.trim();
+            const cirugia = document.getElementById("chkCirugia").value.trim();
+
+            const nombres = document.querySelectorAll(".eq-nombre");
+            const codigos = document.querySelectorAll(".eq-codigo");
+
+            let equipos = [];
+            nombres.forEach((input, index) => {
+                const nombre = input.value.trim();
+                const codigo = codigos[index].value.trim();
+                if (nombre && codigo) {
+                    equipos.push({ nombre, codigoBarras: codigo, verificado: false });
+                }
+            });
+
+            if (!tecnico || !hospital || equipos.length === 0) {
+                return alert("Por favor completa los datos y asigna al menos un equipo con su código de barras.");
+            }
+
+            const nuevoChecklist = {
+                id: Date.now(),
+                folio: `CHK-${Date.now().toString().slice(-5)}`,
+                fecha: new Date().toLocaleString("es-MX"),
+                tecnico,
+                hospital,
+                cirugia,
+                equipos,
+                liberado: false
+            };
+
+            let historial = JSON.parse(localStorage.getItem("historialChecklists")) || [];
+            historial.unshift(nuevoChecklist);
+            localStorage.setItem("historialChecklists", JSON.stringify(historial));
+
+            alert("Checklist guardado y asignado correctamente.");
+            cerrarModoJefe();
+            renderizarChecklists();
+        }
+
+        function renderizarChecklists() {
+            const contenedor = document.getElementById("contenedorChecklists");
+            let historial = JSON.parse(localStorage.getItem("historialChecklists")) || [];
+            contenedor.innerHTML = "";
+
+            if (historial.length === 0) {
+                contenedor.innerHTML = `<p class="text-center text-gray-400 text-sm py-4">No hay checklists pendientes.</p>`;
+                return;
+            }
+
+            historial.forEach((chk) => {
+                const todosListos = chk.equipos.every(e => e.verificado);
+                chk.liberado = todosListos;
+
+                const card = document.createElement("div");
+                card.className = "border rounded-lg p-4 bg-gray-50 space-y-3";
+
+                let htmlEquipos = chk.equipos.map((eq, i) => `
+                    <div class="flex items-center justify-between bg-white p-2 border rounded text-xs">
+                        <div>
+                            <span class="font-bold text-gray-700">${eq.nombre}</span>
+                            <span class="text-gray-400 block text-[10px]">Cód: ${eq.verificado ? eq.codigoBarras : '••••••••'}</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            ${eq.verificado
+                                ? `<span class="bg-green-100 text-green-800 px-2 py-1 rounded font-bold">✅ Verificado</span>`
+                                : `<input type="text" placeholder="Escanear código..." onchange="verificarCodigo(${chk.id}, ${i}, this.value)" class="border p-1 rounded text-xs w-36 text-center border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-500">`
+                            }
+                        </div>
+                    </div>
+                `).join("");
+
+                card.innerHTML = `
+                    <div class="flex justify-between items-start border-b pb-2">
+                        <div>
+                            <span class="font-bold text-blue-600 text-sm">${chk.folio}</span> -
+                            <span class="font-semibold text-gray-800 text-sm">${chk.hospital}</span>
+                            <p class="text-xs text-gray-500">Técnico: <strong>${chk.tecnico}</strong> | Cirugía: ${chk.cirugia}</p>
+                        </div>
+                        <span class="px-2 py-1 rounded text-xs font-bold ${todosListos ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}">
+                            ${todosListos ? '🟢 LISTO / LIBERADO' : '🟡 PENDIENTE DE ESCANEO'}
+                        </span>
+                    </div>
+
+                    <div class="space-y-1">${htmlEquipos}</div>
+
+                    <div class="flex justify-end gap-2 pt-2">
+                        <button onclick='imprimirChecklist(${JSON.stringify(chk)})' ${!todosListos ? 'disabled' : ''}
+                            class="px-3 py-1.5 rounded text-xs font-bold ${todosListos ? 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}">
+                            🖨️ Imprimir / Liberar
+                        </button>
+                    </div>
+                `;
+                contenedor.appendChild(card);
+            });
+        }
+
+        function verificarCodigo(idChecklist, indexEquipo, codigoIngresado) {
+            let historial = JSON.parse(localStorage.getItem("historialChecklists")) || [];
+            let chk = historial.find(c => c.id === idChecklist);
+
+            if (chk) {
+                if (chk.equipos[indexEquipo].codigoBarras === codigoIngresado.trim()) {
+                    chk.equipos[indexEquipo].verificado = true;
+                    localStorage.setItem("historialChecklists", JSON.stringify(historial));
+                    renderizarChecklists();
+                } else {
+                    alert("❌ Código de barras incorrecto. Escanea el equipo asignado.");
+                    renderizarChecklists();
+                }
+            }
+        }
+
+        function imprimirChecklist(data) {
+            document.getElementById("pFolio").textContent = data.folio;
+            document.getElementById("pFecha").textContent = data.fecha;
+            document.getElementById("pTecnico").textContent = data.tecnico;
+            document.getElementById("pHospital").textContent = data.hospital;
+            document.getElementById("pCirugia").textContent = data.cirugia;
+
+            const tbody = document.getElementById("pTablaEquipos");
+            tbody.innerHTML = "";
+            data.equipos.forEach(eq => {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td class="border p-2 text-left">${eq.nombre}</td>
+                    <td class="border p-2 text-center">${eq.codigoBarras}</td>
+                    <td class="border p-2 text-center font-bold text-green-700">VERIFICADO ✅</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            window.print();
+        }
+
+        // Cargar datos al iniciar
+        renderizarChecklists();
+    </script>
+    <!-- Librería para generar códigos de barras (JsBarcode) -->
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.min.js"></script>
+
+<style>
+    /* Configuración de impresión para TUK Stik A20 */
+    @media print {
+        @page {
+            size: letter portrait; /* Hoja tamaño Carta */
+            margin: 10mm 8mm;      /* Márgenes de calibración para la planilla */
+        }
+
+        body * {
+            visibility: hidden;
+        }
+
+        #seccionImpresionEtiquetas, #seccionImpresionEtiquetas * {
+            visibility: visible;
+        }
+
+        #seccionImpresionEtiquetas {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+        }
+
+        /* Rejilla de 2 filas x 6 columnas (12 etiquetas por planilla) */
+        .grid-etiquetas {
+            display: grid;
+            grid-template-columns: repeat(6, 64mm);
+            grid-template-rows: repeat(2, 32mm);
+            gap: 2mm 3mm; /* Separación vertical y horizontal */
+            justify-content: center;
+        }
+
+        .etiqueta-item {
+            width: 64mm;
+            height: 32mm;
+            padding: 2mm;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            overflow: hidden;
+            page-break-inside: avoid;
+        }
+
+        .etiqueta-item span.titulo {
+            font-size: 8px;
+            font-weight: bold;
+            text-transform: uppercase;
+            line-height: 1;
+            max-width: 100%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .etiqueta-item svg {
+            max-width: 100%;
+            height: 18mm !important; /* Altura optimizada para el código de barras */
+        }
+    }
+</style>
+
+<!-- MODAL / CONTENEDOR PARA SELECCIONAR O GENERAR ETIQUETA -->
+<div class="bg-white p-6 rounded-lg border shadow-sm my-4">
+    <h3 class="font-bold text-gray-800 text-sm mb-3">🏷️ Imprimir Código de Barras de Equipo</h3>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs mb-3">
+        <div>
+            <label class="block font-semibold mb-1">Buscar en Google Sheets:</label>
+            <input list="listaSheetsEquipos" id="selectEquipoSheets" onchange="autocompletarEquipo(this.value)"
+                   placeholder="Escribe ID o Nombre..." class="w-full border p-2 rounded">
+            <datalist id="listaSheetsEquipos"></datalist>
+        </div>
+        <div>
+            <label class="block font-semibold mb-1">ID / Código de Barras:</label>
+            <input type="text" id="lblCodigo" placeholder="Ej. ENBO1" class="w-full border p-2 rounded font-mono uppercase">
+        </div>
+        <div>
+            <label class="block font-semibold mb-1">Nombre / Descripción:</label>
+            <input type="text" id="lblNombre" placeholder="Ej. ENERGIA BIPOLAR" class="w-full border p-2 rounded">
+        </div>
+    </div>
+
+    <div class="flex gap-2 justify-end">
+        <button onclick="generarVistaPreviaEtiqueta()" class="bg-slate-700 text-white text-xs px-3 py-2 rounded font-bold">
+            👁️ Vista Previa
+        </button>
+        <button onclick="imprimirEtiquetas()" class="bg-green-600 hover:bg-green-700 text-white text-xs px-4 py-2 rounded font-bold">
+            🖨️ Imprimir Etiquetas
+        </button>
+    </div>
+
+    <!-- Vista previa de la etiqueta -->
+    <div id="vistaPreviaEtiqueta" class="mt-4 flex justify-center hidden">
+        <div class="border p-3 rounded bg-gray-50 flex flex-col items-center">
+            <span id="pvNombre" class="font-bold text-xs text-gray-800"></span>
+            <svg id="pvBarcode"></svg>
+        </div>
+    </div>
+</div>
+
+<!-- SECCIÓN OCULTA QUE SE IMPRIME EN LAS HOJAS ADHESIVAS -->
+<div id="seccionImpresionEtiquetas" class="hidden">
+    <div class="grid-etiquetas" id="contenedorHojasEtiquetas">
+        <!-- Las etiquetas generadas se insertan aquí -->
+    </div>
+</div>
+
+<script>
+    // 1. Cargar el catálogo dinámico desde tu Google Sheets (Flask API)
+    async function cargarCatalogoSheets() {
+        try {
+            const res = await fetch('/api/equipos-sheets');
+            const data = await res.json();
+            const datalist = document.getElementById("listaSheetsEquipos");
+            datalist.innerHTML = "";
+
+            data.forEach(item => {
+                const opt = document.createElement("option");
+                opt.value = `${item.id} | ${item.nombre}`;
+                opt.dataset.id = item.id;
+                opt.dataset.nombre = item.nombre;
+                datalist.appendChild(opt);
+            });
+        } catch (e) {
+            console.error("Error al conectar con Google Sheets:", e);
+        }
+    }
+
+    function autocompletarEquipo(val) {
+        const partes = val.split("|");
+        if (partes.length === 2) {
+            document.getElementById("lblCodigo").value = partes[0].trim();
+            document.getElementById("lblNombre").value = partes[1].trim();
+        }
+    }
+
+    function generarVistaPreviaEtiqueta() {
+        const codigo = document.getElementById("lblCodigo").value.trim();
+        const nombre = document.getElementById("lblNombre").value.trim();
+
+        if (!codigo) return alert("Por favor ingresa un código de barras.");
+
+        document.getElementById("pvNombre").textContent = nombre;
+        JsBarcode("#pvBarcode", codigo, {
+            format: "CODE128",
+            width: 1.5,
+            height: 45,
+            displayValue: true,
+            fontSize: 11
+        });
+
+        document.getElementById("vistaPreviaEtiqueta").classList.remove("hidden");
+    }
+
+   function imprimirEtiquetas() {
+    const codigo = document.getElementById("lblCodigo").value.trim();
+    const nombre = document.getElementById("lblNombre").value.trim();
+    const cantidad = parseInt(prompt("¿Cuántas etiquetas deseas imprimir? (Ejemplo: 12 para una planilla completa)", "12")) || 1;
+
+    if (!codigo) return alert("Por favor ingresa o selecciona un código válido.");
+
+    const contenedor = document.getElementById("contenedorHojasEtiquetas");
+    contenedor.innerHTML = "";
+
+    for (let i = 0; i < cantidad; i++) {
+        const item = document.createElement("div");
+        item.className = "etiqueta-item";
+        item.innerHTML = `
+            <span class="titulo">${nombre}</span>
+            <svg id="bc_${i}"></svg>
+        `;
+        contenedor.appendChild(item);
+
+        // Generación del código con dimensiones ajustadas para 6.4 x 3.2 cm
+        JsBarcode(`#bc_${i}`, codigo, {
+            format: "CODE128",
+            width: 1.1,        // Ancho de las barras
+            height: 30,        // Alto de las barras
+            displayValue: true,
+            fontSize: 9,
+            margin: 0
+        });
+    }
+
+    document.getElementById("seccionImpresionEtiquetas").classList.remove("hidden");
+    window.print();
+    document.getElementById("seccionImpresionEtiquetas").classList.add("hidden");
+}
+
+    // Inicializar catálogo
+    cargarCatalogoSheets();
+</script>
+<script>
+    const appShell = document.getElementById('appShell');
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    if (localStorage.getItem('avantSidebarCollapsed') === 'true') {
+        appShell.classList.add('sidebar-collapsed');
+    }
+    sidebarToggle.addEventListener('click', () => {
+        const isCollapsed = appShell.classList.toggle('sidebar-collapsed');
+        localStorage.setItem('avantSidebarCollapsed', String(isCollapsed));
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Remisión {{ data.remisionNo }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; color: #111; margin: 2rem; font-size: 12px; }
+        header { display: flex; justify-content: space-between; border-bottom: 2px solid #111; padding-bottom: 1rem; }
+        h1 { letter-spacing: .15em; color: #6b7280; margin: 0; font-size: 28px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 1.5rem; }
+        th, td { border-bottom: 1px solid #bbb; padding: .5rem; text-align: left; }
+        th:last-child, td:last-child { text-align: right; }
+        .datos { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem 2rem; margin-top: 1.5rem; border: 1px dashed #666; padding: 1rem; background: #fafafa; }
+        .linea-mano { border-bottom: 1px solid #111; display: inline-block; min-width: 180px; }
+        .acciones { margin-top: 2rem; }
+        @media print { .acciones { display: none; } body { margin: 0; } }
+    </style>
+</head>
+<body>
+    <header>
+        <div>
+            <h1>AVANT</h1>
+            <strong>{{ 'AVANT SOLUCIONES MEDICAS' if 'ANGELES' in data.hospital|upper else 'AVANT GARDE MEDIC SERVICE' }}</strong>
+        </div>
+        <div style="text-align: right;">
+            <strong>REMISIÓN N° <span style="color: red; font-size: 14px;">{{ data.remisionNo }}</span></strong><br>
+            <span>{{ data.fechaRegistro }}</span>
+        </div>
+    </header>
+
+    <div class="datos">
+        <div><strong>Hospital:</strong> {{ data.hospital }}</div>
+        <div><strong>Ciudad:</strong> {{ data.ciudad or 'CIUDAD DE MEXICO' }}</div>
+        <div><strong>Doctor(a):</strong> {{ data.doctor }}</div>
+        <div><strong>Paciente:</strong> <span class="linea-mano">&nbsp;</span></div>
+        <div><strong>Habitación:</strong> <span class="linea-mano" style="min-width: 60px;">&nbsp;</span></div>
+        <div><strong>Cirugía:</strong> {{ data.cirugia }}</div>
+        <div><strong>Episodio:</strong> <span class="linea-mano" style="min-width: 100px;">&nbsp;</span></div>
+        <div><strong>Aseguradora:</strong> <span class="linea-mano" style="min-width: 120px;">&nbsp;</span></div>
+        <div><strong>Técnico:</strong> {{ data.tecnico }}</div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Cantidad</th>
+                <th>Descripción</th>
+                <th>Precio unitario</th>
+                <th>Importe</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for item in data.conceptos %}
+            <tr>
+                <td>{{ item.cantidad }}</td>
+                <td style="text-transform: uppercase;">{{ item.nombre }}</td>
+                <td>${{ '%.2f'|format(item.precio|float) }}</td>
+                <td>${{ '%.2f'|format(item.importe|float) }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem;">
+        <div style="width: 220px; font-weight: bold;">
+            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #ddd; padding: 2px 0;">
+                <span>SUBTOTAL</span>
+                <span>${{ '%.2f'|format(data.subtotal if data.subtotal is defined else 0.0) }}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #ddd; padding: 2px 0;">
+                <span>IVA</span>
+                <span>${{ '%.2f'|format(data.iva if data.iva is defined else 0.0) }}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 4px 0; font-size: 14px;">
+                <span>TOTAL</span>
+                <span>${{ '%.2f'|format(data.total if data.total is defined else 0.0) }}</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="acciones">
+        <button onclick="window.print()" style="padding: 10px 20px; background: #059669; color: white; border: none; font-weight: bold; border-radius: 5px; cursor: pointer;">🖨️ Imprimir / Guardar como PDF</button>
+    </div>
+</body>
+</html>

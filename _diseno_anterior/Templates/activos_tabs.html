@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Activos Fijos & Rentas - AVANT WMS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    <style>
+        body { background-color: #f4f6f9; margin: 0; }
+        .tab-box { background-color: #ffffff; border-radius: 10px; padding: 20px; }
+        .badge-disponible { background-color: #198754; color: white; }
+        .badge-renta { background-color: #0d6efd; color: white; }
+        .badge-mantenimiento { background-color: #ffc107; color: black; }
+        .barcode-svg { max-height: 40px; max-width: 140px; }
+        .box-checklist { background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 15px; }
+        .app-shell { min-height: 100vh; }
+        .app-shell .app-sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 220px; background: linear-gradient(180deg, #111827 0%, #0f172a 100%); color: #fff; padding: 1rem 0.8rem; z-index: 1000; transition: width 0.25s ease; }
+        .app-shell.sidebar-collapsed .app-sidebar { width: 80px; }
+        .app-shell.sidebar-collapsed .nav-label, .app-shell.sidebar-collapsed .brand-text { opacity: 0; width: 0; overflow: hidden; pointer-events: none; }
+        .app-shell.sidebar-collapsed .nav-link { justify-content: center; }
+        .app-shell.sidebar-collapsed .brand { justify-content: center; }
+        .app-shell.sidebar-collapsed .sidebar-toggle-btn { transform: rotate(180deg); }
+        .app-sidebar .brand { display: flex; align-items: center; gap: 0.7rem; font-weight: 800; font-size: 1.2rem; margin-bottom: 1rem; color: #f8fafc; }
+        .app-sidebar .brand i { color: #60a5fa; }
+        .app-sidebar .nav-link { display: flex; align-items: center; gap: 0.7rem; color: rgba(255,255,255,.8); text-decoration: none; padding: 0.7rem 0.9rem; border-radius: 10px; margin-bottom: 0.35rem; white-space: nowrap; }
+        .app-sidebar .nav-link:hover, .app-sidebar .nav-link.active { background-color: rgba(96,165,250,0.18); color: white; }
+        .app-sidebar .nav-link i { width: 18px; text-align: center; }
+        .shell-content { margin-left: 220px; padding: 1rem 1.2rem; transition: margin-left 0.25s ease; }
+        .app-shell.sidebar-collapsed .shell-content { margin-left: 80px; }
+        .sidebar-toggle-btn { border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.04); color: white; border-radius: 8px; width: 36px; height: 36px; }
+        @media (max-width: 991px) {
+            .shell-content { margin-left: 0; padding: 0.75rem; }
+            .app-shell .app-sidebar { position: static; width: 100%; }
+            .app-shell.sidebar-collapsed .app-sidebar { width: 100%; }
+            .app-shell.sidebar-collapsed .shell-content { margin-left: 0; }
+            .app-shell.sidebar-collapsed .nav-label, .app-shell.sidebar-collapsed .brand-text { opacity: 1; width: auto; }
+        }
+    </style>
+</head>
+<body>
+    
+<div class="app-shell" id="appShell">
+    {% include '_sidebar.html' %}
+    <div class="shell-content">
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4 shadow-sm">
+    <div class="container-fluid">
+        <span class="navbar-brand fw-bold mb-0">Inventarios AVANT</span>
+    </div>
+</nav>
+
+<div class="container-fluid px-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h3 class="fw-bold text-dark mb-0">💻 Control de Activos Fijos & Renta de Equipos</h3>
+            <p class="text-muted mb-0">Gestión de custodia de torres médicas, monitores, laptops y fuentes de energía.</p>
+        </div>
+        <button onclick="crearNuevoActivo()" class="btn btn-primary fw-bold shadow-sm">➕ Registrar Nuevo Equipo</button>
+    </div>
+
+    <ul class="nav nav-pills mb-3" id="activosTabs" role="tablist">
+        <li class="nav-item">
+            <button class="nav-link active fw-bold px-4 py-2" id="tab-renta" data-bs-toggle="pill" data-bs-target="#panel-renta" type="button">🏥 RENTA / SALIDA DE EQUIPO</button>
+        </li>
+        <li class="nav-item ms-2">
+            <button class="nav-link fw-bold px-4 py-2 bg-secondary text-white" id="tab-retorno" data-bs-toggle="pill" data-bs-target="#panel-retorno" type="button">🔄 RETORNO A BODEGA</button>
+        </li>
+        <li class="nav-item ms-2">
+            <button class="nav-link fw-bold px-4 py-2 bg-dark text-white" id="tab-catalogo" data-bs-toggle="pill" data-bs-target="#panel-catalogo" type="button">📦 CATÁLOGO MAESTRO DE EQUIPOS</button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="activosTabsContent">
+        
+        <!-- PESTAÑA 1: RENTA / SALIDA -->
+        <div class="tab-pane fade show active tab-box shadow-sm" id="panel-renta">
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <label class="form-label fw-bold text-primary">🔍 Escanear Código de Barras / ID Equipo:</label>
+                    <input type="text" id="escaner_renta" class="form-control form-control-lg border-primary fw-bold" placeholder="Escanea o teclea ID/Código..." autofocus onblur="buscarActivoRenta()">
+                </div>
+                <div class="col-md-8">
+                    <div class="card bg-light p-3 border-secondary">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p class="mb-1"><strong>Equipo:</strong> <span id="info_equipo_tipo" class="text-primary font-monospace">-</span></p>
+                                <p class="mb-1"><strong>Marca/Modelo:</strong> <span id="info_equipo_modelo">-</span></p>
+                            </div>
+                            <div class="col-md-6">
+                                <p class="mb-1"><strong>Número de Serie:</strong> <span id="info_equipo_serie">-</span></p>
+                                <p class="mb-1"><strong>Estatus Actual:</strong> <span id="info_equipo_estatus" class="badge bg-secondary">Sin Escanear</span></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3 border-top pt-3 mb-3">
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Paciente / Folio Renta:</label>
+                    <input type="text" id="renta_paciente" class="form-control fw-bold" placeholder="Ej: PAC-1002 / HOSPITAL ABC">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Médico / Responsable:</label>
+                    <input type="text" id="renta_responsable" class="form-control fw-bold" placeholder="Ej: DR. CARLOS GÓMEZ">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-bold text-danger">Operador:</label>
+                    <input type="text" id="renta_usuario" class="form-control border-danger fw-bold" placeholder="TU NOMBRE" required>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Notas Especiales:</label>
+                    <input type="text" id="renta_notas" class="form-control" placeholder="Observaciones generales...">
+                </div>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div class="box-checklist">
+                        <h6 class="fw-bold text-primary mb-2">🔌 Accesorios Incluidos en la Entrega:</h6>
+                        <div class="row g-2">
+                            <div class="col-6"><div class="form-check"><input class="form-check-input chk-acc" type="checkbox" value="Cable de Alimentación/Poder" id="acc1" checked><label class="form-check-label" for="acc1">Cable de Poder</label></div></div>
+                            <div class="col-6"><div class="form-check"><input class="form-check-input chk-acc" type="checkbox" value="Pedal de Corte/Coagulación" id="acc2"><label class="form-check-label" for="acc2">Pedal Doble/Sencillo</label></div></div>
+                            <div class="col-6"><div class="form-check"><input class="form-check-input chk-acc" type="checkbox" value="Cable de Fibra Óptica" id="acc3"><label class="form-check-label" for="acc3">Fibra Óptica</label></div></div>
+                            <div class="col-6"><div class="form-check"><input class="form-check-input chk-acc" type="checkbox" value="Fuente de Luz Externa" id="acc4"><label class="form-check-label" for="acc4">Fuente de Luz</label></div></div>
+                            <div class="col-6"><div class="form-check"><input class="form-check-input chk-acc" type="checkbox" value="Maletín Rígido de Trasporte" id="acc5" checked><label class="form-check-label" for="acc5">Maletín Rígido</label></div></div>
+                            <div class="col-6"><div class="form-check"><input class="form-check-input chk-acc" type="checkbox" value="Camisa/Pieza de Mano Reutilizable" id="acc6"><label class="form-check-label" for="acc6">Pieza de Mano/Camisa</label></div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="box-checklist">
+                        <h6 class="fw-bold text-success mb-2">📋 Inspección Física y Funcional de Salida:</h6>
+                        <div class="row g-2">
+                            <div class="col-6"><div class="form-check"><input class="form-check-input chk-ins" type="checkbox" value="Chasis Limpio y Sin Golpes" id="ins1" checked><label class="form-check-label" for="ins1">Chasis Limpio/Intacto</label></div></div>
+                            <div class="col-6"><div class="form-check"><input class="form-check-input chk-ins" type="checkbox" value="Óptica/Lentes Libres de Rayaduras" id="ins2" checked><label class="form-check-label" for="ins2">Ópticas Sin Rayaduras</label></div></div>
+                            <div class="col-6"><div class="form-check"><input class="form-check-input chk-ins" type="checkbox" value="Conectores Eléctricos Integros" id="ins3" checked><label class="form-check-label" for="ins3">Conectores Integros</label></div></div>
+                            <div class="col-6"><div class="form-check"><input class="form-check-input chk-ins" type="checkbox" value="Prueba de Encendido / Video OK" id="ins4" checked><label class="form-check-label" for="ins4">Prueba de Encendido OK</label></div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="ejecutarRenta()" id="btnEjecutarRenta" class="btn btn-success btn-lg w-100 fw-bold mt-4 shadow">✅ REGISTRAR RENTA Y GENERAR RESPONSIVA PDF</button>
+        </div>
+
+        <!-- PESTAÑA 2: RETORNO DE EQUIPO -->
+        <div class="tab-pane fade tab-box shadow-sm" id="panel-retorno">
+            <h5 class="fw-bold text-secondary mb-3">🔄 Recepción de Equipo Devuelto</h5>
+            <div class="row g-3 mb-3">
+                <div class="col-md-4">
+                    <label class="form-label fw-bold text-success">🔍 Escanear Equipo que Regresa:</label>
+                    <input type="text" id="escaner_retorno" class="form-control form-control-lg border-success fw-bold" placeholder="Escanea código ID/Barra...">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">Estatus al Recibir:</label>
+                    <select id="retorno_estatus" class="form-select form-select-lg fw-bold">
+                        <option value="Disponible">🟢 Disponible (Buen Estado)</option>
+                        <option value="Mantenimiento">🟡 Mantenimiento / Revisión Requerida por Daños</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-bold text-danger">Operador que Recibe:</label>
+                    <input type="text" id="retorno_usuario" class="form-control form-control-lg border-danger fw-bold" placeholder="TU NOMBRE">
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-bold">Checklist de Daños o Faltantes al Recibir:</label>
+                <input type="text" id="retorno_notas" class="form-control" placeholder="Ej: Faltó cable de alimentación, lente con rayadura menor...">
+            </div>
+            <button onclick="ejecutarRetorno()" class="btn btn-primary btn-lg w-100 fw-bold shadow">📥 REGISTRAR RETORNO A BODEGA</button>
+        </div>
+
+        <!-- PESTAÑA 3: CATÁLOGO MAESTRO -->
+        <div class="tab-pane fade tab-box shadow-sm" id="panel-catalogo">
+            
+            <div class="card shadow-sm border-success mb-4">
+                <div class="card-body bg-light">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h5 class="text-success fw-bold mb-0">🚀 Carga Masiva de Activos Fijos (Excel .xlsx)</h5>
+                        <a href="/activos/descargar_plantilla" class="btn btn-sm btn-outline-success fw-bold">📥 Descargar Plantilla Layout Activos</a>
+                    </div>
+                    <form action="/activos/cargar_layout" method="POST" enctype="multipart/form-data" class="d-flex align-items-center gap-3">
+                        <input type="text" name="usuario_layout" class="form-control w-25 border-success" placeholder="Operador Masivo" required>
+                        <input type="password" name="pin_admin_layout" class="form-control w-25 border-danger" placeholder="PIN Administrador" required>
+                        <input type="file" class="form-control border-success w-50" name="archivo_excel" accept=".xlsx" required>
+                        <button type="submit" class="btn btn-success text-white fw-bold shadow-sm">Subir Excel Activos</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold text-dark mb-0">📦 Registro General de Equipos Registrados</h5>
+                <input type="text" id="buscadorActivos" class="form-control w-25 border-primary fw-bold" placeholder="🔍 Buscar ID, Marca, Serie..." onkeyup="filtrarTablaActivos()">
+            </div>
+
+            <div class="table-responsive mb-5">
+                <table id="tabla_activos_maestro" class="table table-hover table-bordered text-center align-middle" style="font-size: 0.85rem;">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>ID / Código</th>
+                            <th>Código de Barras</th>
+                            <th>Tipo de Equipo</th>
+                            <th>Marca / Modelo</th>
+                            <th>Número de Serie</th>
+                            <th>Empresa Propietaria</th>
+                            <th>MOI ($)</th>
+                            <th>Estatus</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for a in activos %}
+                        <tr class="fila-activo">
+                            <td class="fw-bold text-primary font-monospace fs-6">{{ a[0] }}</td>
+                            <td class="bg-white"><svg class="barcode-render" data-code="{{ a[8] if a|length > 8 else a[0] }}"></svg></td>
+                            <td class="fw-bold text-start">{{ a[1] }}</td>
+                            <td>{{ a[2] or '-' }} {{ a[3] or '' }}</td>
+                            <td class="font-monospace fw-bold">{{ a[4] or '-' }}</td>
+                            <td><span class="badge bg-secondary">{{ a[6] or 'AVANT' }}</span></td>
+                            <td class="fw-bold text-success">${{ "{:,.2f}".format(a[5] or 0.0) }}</td>
+                            <td>
+                                {% if a[7] == 'Disponible' %}
+                                    <span class="badge badge-disponible px-3 py-2">🟢 DISPONIBLE</span>
+                                {% elif a[7] == 'En Renta' %}
+                                    <span class="badge badge-renta px-3 py-2">🔵 EN RENTA</span>
+                                {% else %}
+                                    <span class="badge badge-mantenimiento px-3 py-2">🟡 MANTENIMIENTO</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-dark fw-bold" onclick="imprimirEtiquetaBarra({{ a[0] | tojson }}, {{ (a[8] if a|length > 8 else a[0]) | tojson }}, {{ a[1] | tojson }}, {{ ((a[2] or '') ~ ' ' ~ (a[3] or '')) | tojson }})" title="Imprimir Etiqueta Adhesiva">🏷️ Etiqueta</button>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="9" class="py-4 text-muted"><em>No hay equipos activos registrados. Registra uno nuevo o sube un Layout en Excel.</em></td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- HISTORIAL DE RENTAS Y RESPONSIVAS -->
+            <h5 class="fw-bold text-dark mb-3">📄 Historial Reciente de Renta y Responsivas PDF</h5>
+            <div class="table-responsive">
+                <table class="table table-sm table-bordered text-center align-middle" style="font-size: 0.8rem;">
+                    <thead class="table-secondary">
+                        <tr>
+                            <th>Folio Mov</th>
+                            <th>Fecha</th>
+                            <th>ID Equipo</th>
+                            <th>Tipo Movimiento</th>
+                            <th>Paciente / Cliente</th>
+                            <th>Médico / Responsable</th>
+                            <th>Operador</th>
+                            <th>Carta Responsiva</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for h in historial %}
+                        <tr>
+                            <td class="fw-bold">#{{ h[0] }}</td>
+                            <td>{{ h[4] }}</td>
+                            <td class="fw-bold text-primary">{{ h[1] }}</td>
+                            <td>
+                                {% if 'Renta' in h[3] %}
+                                    <span class="badge bg-primary">SALIDA RENTA</span>
+                                {% else %}
+                                    <span class="badge bg-success">RETORNO</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ h[6] or '-' }}</td>
+                            <td class="fw-bold">{{ h[5] or '-' }}</td>
+                            <td>{{ h[8] }}</td>
+                            <td>
+                                <a href="/activos/responsiva/{{ h[0] }}" target="_blank" class="btn btn-sm btn-danger fw-bold">📄 PDF Responsiva</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let activoEscaneadoActual = null;
+
+    document.addEventListener("DOMContentLoaded", function() {
+        let elementos = document.getElementsByClassName("barcode-render");
+        for(let el of elementos) {
+            let codigo = el.getAttribute("data-code");
+            if(codigo) {
+                JsBarcode(el, codigo, { format: "CODE128", displayValue: true, fontSize: 10, height: 28, margin: 0 });
+            }
+        }
+    });
+
+    function buscarActivoRenta() {
+        let id = document.getElementById('escaner_renta').value.trim().toUpperCase();
+        if(!id) return;
+
+        fetch('/activos/buscar/' + encodeURIComponent(id))
+        .then(r => r.json())
+        .then(d => {
+            if(d.encontrado) {
+                activoEscaneadoActual = d.id_activo;
+                document.getElementById('info_equipo_tipo').innerText = d.id_activo + ' - ' + d.tipo;
+                document.getElementById('info_equipo_modelo').innerText = d.marca + ' ' + d.modelo;
+                document.getElementById('info_equipo_serie').innerText = d.serie || 'S/N';
+                
+                let badge = document.getElementById('info_equipo_estatus');
+                badge.innerText = d.estatus.toUpperCase();
+                badge.className = d.estatus === 'Disponible' ? 'badge bg-success fs-6' : 'badge bg-danger fs-6';
+            } else {
+                alert("❌ ERROR: Equipo con ID/Código " + id + " no fue encontrado.");
+                limpiarFichaEquipo();
+            }
+        });
+    }
+
+    function limpiarFichaEquipo() {
+        activoEscaneadoActual = null;
+        document.getElementById('info_equipo_tipo').innerText = '-';
+        document.getElementById('info_equipo_modelo').innerText = '-';
+        document.getElementById('info_equipo_serie').innerText = '-';
+        document.getElementById('info_equipo_estatus').innerText = 'Sin Escanear';
+        document.getElementById('info_equipo_estatus').className = 'badge bg-secondary';
+    }
+
+    function ejecutarRenta() {
+        let id = document.getElementById('escaner_renta').value.trim().toUpperCase();
+        let paci = document.getElementById('renta_paciente').value.trim();
+        let resp = document.getElementById('renta_responsable').value.trim();
+        let usr = document.getElementById('renta_usuario').value.trim();
+        let notas = document.getElementById('renta_notas').value.trim();
+
+        if(!id || !activoEscaneadoActual) { alert("⚠️ Primero escanea un equipo válido."); return; }
+        if(!usr) { alert("⚠️ Por favor ingresa tu nombre de Operador."); return; }
+
+        let accesoriosArr = [];
+        document.querySelectorAll('.chk-acc:checked').forEach(c => accesoriosArr.push(c.value));
+        let accesoriosStr = accesoriosArr.join(', ');
+
+        let checklistArr = [];
+        document.querySelectorAll('.chk-ins:checked').forEach(c => checklistArr.push(c.value));
+        let checklistStr = checklistArr.join(', ');
+
+        let btn = document.getElementById('btnEjecutarRenta');
+        btn.disabled = true; btn.innerText = "⏳ PROCESANDO Y GENERANDO RESPONSIVA...";
+
+        fetch('/activos/rentar', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ 
+                id_activo: id, 
+                paciente_folio: paci, 
+                responsable: resp, 
+                usuario: usr, 
+                notas: notas,
+                accesorios: accesoriosStr,
+                checklist: checklistStr
+            })
+        })
+        .then(r => r.json())
+        .then(d => {
+            if(d.success) {
+                alert(d.mensaje);
+                window.open('/activos/responsiva/' + d.id_movimiento, '_blank');
+                window.location.reload();
+            } else { 
+                alert(d.mensaje);
+                btn.disabled = false; 
+                btn.innerText = "✅ REGISTRAR RENTA Y GENERAR RESPONSIVA PDF"; 
+            }
+        });
+    }
+
+    function ejecutarRetorno() {
+        let id = document.getElementById('escaner_retorno').value.trim().toUpperCase();
+        let estatus = document.getElementById('retorno_estatus').value;
+        let usr = document.getElementById('retorno_usuario').value.trim();
+        let notas = document.getElementById('retorno_notas').value.trim();
+
+        if(!id) { alert("⚠️ Escanea el código del equipo devuelto."); return; }
+        if(!usr) { alert("⚠️ Ingresa tu nombre como Operador que recibe."); return; }
+
+        fetch('/activos/retornar', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ id_activo: id, estatus: estatus, usuario: usr, notas: notas, checklist: "Devuelto con notas: " + notas })
+        })
+        .then(r => r.json())
+        .then(d => {
+            alert(d.mensaje);
+            if(d.success) window.location.reload();
+        });
+    }
+
+    function crearNuevoActivo() {
+        let pin = prompt("🔒 PIN Administrador:");
+        if(pin !== "{{ pin }}") { alert("❌ PIN INCORRECTO."); return; }
+
+        let id_a = prompt("📦 Código / ID único del Equipo (Ej: ENB01, FNT02):"); if(!id_a) return;
+        let cod_bar = prompt("🏷️ Código de Barras (opcional, presiona Enter para usar el ID):", id_a);
+        let tipo = prompt("📝 Tipo de Equipo (Ej: Fuente de Luz, Energía Bipolar, Laptop):"); if(!tipo) return;
+        let marca = prompt("🏷️ Marca:");
+        let modelo = prompt("⚙️ Modelo:");
+        let serie = prompt("🔢 Número de Serie:");
+        let empresa = prompt("🏢 Empresa Propietaria (AVANT / MEDICALL):", "AVANT");
+        let costo = prompt("💰 MOI (Monto Original de la Inversión):", "0");
+
+        fetch('/activos/crear', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ pin: pin, id_activo: id_a, codigo_barras: cod_bar, tipo: tipo, marca: marca, modelo: modelo, serie: serie, empresa: empresa, costo: costo })
+        })
+        .then(r => r.json())
+        .then(d => {
+            alert(d.mensaje);
+            if(d.success) window.location.reload();
+        });
+    }
+
+    function imprimirEtiquetaBarra(idActivo, codBarras, tipo, descripcion) {
+        let ventana = window.open('', '_blank', 'width=400,height=300');
+        ventana.document.write(`
+            <html>
+            <head>
+                <title>Etiqueta ${idActivo}</title>
+                <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"><\/script>
+                <style>
+                    body { font-family: Arial, sans-serif; text-align: center; margin: 0; padding: 10px; }
+                    .etiqueta-box { border: 2px solid #000; padding: 10px; border-radius: 5px; width: 280px; margin: auto; }
+                    h4 { margin: 2px 0; font-size: 14px; font-weight: bold; }
+                    p { margin: 2px 0; font-size: 11px; }
+                    svg { width: 100%; height: 50px; }
+                </style>
+            </head>
+            <body>
+                <div class="etiqueta-box">
+                    <p style="font-weight: bold; color: #0d6efd;">🏥 INVENTARIOS AVANT</p>
+                    <h4>${idActivo}</h4>
+                    <p>${tipo}</p>
+                    <p>${descripcion}</p>
+                    <svg id="barcode-print"></svg>
+                </div>
+                <script>
+                    JsBarcode("#barcode-print", "${codBarras || idActivo}", { format: "CODE128", height: 40, fontSize: 12 });
+                    setTimeout(() => { window.print(); window.close(); }, 500);
+                <\/script>
+            </body>
+            </html>
+        `);
+    }
+
+    function filtrarTablaActivos() {
+        let input = document.getElementById("buscadorActivos").value.toUpperCase();
+        let filas = document.getElementsByClassName("fila-activo");
+        for (let i = 0; i < filas.length; i++) {
+            let textoFila = filas[i].textContent || filas[i].innerText;
+            if (textoFila.toUpperCase().indexOf(input) > -1) { filas[i].style.display = ""; } 
+            else { filas[i].style.display = "none"; }
+        }
+    }
+
+    document.getElementById('escaner_renta').addEventListener('keydown', function(e) {
+        if(e.key === 'Enter') { e.preventDefault(); buscarActivoRenta(); }
+    });
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    const appShell = document.getElementById('appShell');
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    if (localStorage.getItem('avantSidebarCollapsed') === 'true') {
+        appShell.classList.add('sidebar-collapsed');
+    }
+    sidebarToggle.addEventListener('click', () => {
+        const isCollapsed = appShell.classList.toggle('sidebar-collapsed');
+        localStorage.setItem('avantSidebarCollapsed', String(isCollapsed));
+    });
+</script>
+</body>
+</html>
