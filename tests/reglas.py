@@ -41,13 +41,40 @@ with app.app_context():
     check("RFC otros",
           Empresa.datos_para_hospital("Medica Sur")["rfc"], "AGM210811HD9")
 
-    print("\nDos listas de precios:")
-    insumo = Insumo(nombre="Set", codigo_barras="X1", precio_angeles=480,
-                    precio_otros=390, stock_minimo=10)
+    print("\nEl catalogo de hospitales manda sobre el nombre:")
+    from app.models import EquipoMedico, Hospital, TarifaEquipo, precio_renta
+
+    # Un hospital del Grupo Angeles marcado a proposito como la otra empresa:
+    # debe ganar el dato capturado, no lo que sugiere el nombre.
+    raro = Hospital(nombre="Hospital Angeles del Norte", empresa=Empresa.GARDE)
+    bite = Hospital(nombre="Bite Medica", empresa=Empresa.GARDE)
+    angeles = Hospital(nombre="Hospital Angeles Pedregal",
+                       empresa=Empresa.SOLUCIONES)
+    db.session.add_all([raro, bite, angeles])
+    db.session.commit()
+    check("el dato capturado gana al nombre", raro.empresa, Empresa.GARDE)
+    check("y la regla de texto habria dicho otra cosa",
+          Empresa.para_hospital(raro.nombre), Empresa.SOLUCIONES)
+
+    print("\nTarifa de renta por hospital:")
+    equipo = EquipoMedico(nombre="Torre", codigo_barras="TOLA9")
+    db.session.add(equipo)
+    db.session.commit()
+    db.session.add_all([
+        TarifaEquipo(equipo_id=equipo.id, hospital_id=angeles.id,
+                     precio_renta=8500, vigente_desde=date(2026, 1, 1)),
+        TarifaEquipo(equipo_id=equipo.id, hospital_id=bite.id,
+                     precio_renta=7200, vigente_desde=date(2026, 1, 1)),
+    ])
+    db.session.commit()
+    check("mismo equipo, un hospital", float(precio_renta(equipo, angeles)), 8500.0)
+    check("mismo equipo, otro hospital", float(precio_renta(equipo, bite)), 7200.0)
+    # Sin tarifa devuelve None, no cero: son cosas distintas.
+    check("sin tarifa capturada", precio_renta(equipo, raro), None)
+
+    insumo = Insumo(nombre="Set", codigo_barras="X1", stock_minimo=10)
     db.session.add(insumo)
     db.session.commit()
-    check("precio en Angeles", float(insumo.precio_para("Hospital Angeles")), 480.0)
-    check("precio en otros", float(insumo.precio_para("Bite Medica")), 390.0)
 
     print("\nStock repartido en almacenes:")
     central = Almacen(nombre="Central")

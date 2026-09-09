@@ -1,6 +1,7 @@
 from flask_wtf import FlaskForm
 from wtforms import (
     DateField,
+    DecimalField,
     SelectField,
     StringField,
     SubmitField,
@@ -15,6 +16,11 @@ def _opciones(valores, vacio="-- Seleccionar --"):
     return [("", vacio)] + [(v, v) for v in valores]
 
 
+# Sin default="", un selector que el navegador no manda llega como None, que no
+# esta entre las opciones, y WTForms lo rechaza con "Not a valid choice".
+VACIO = {"default": ""}
+
+
 class NotaVentaForm(FlaskForm):
     """Encabezado de la nota.
 
@@ -24,9 +30,9 @@ class NotaVentaForm(FlaskForm):
     """
 
     # --- Destino ---
-    hospital = StringField(
-        "Hospital / Clinica",
-        validators=[DataRequired("Indica el hospital."), Length(max=200)],
+    hospital_id = SelectField(
+        "Hospital / clinica", coerce=int,
+        validators=[DataRequired("Elige el hospital.")],
     )
     ciudad = StringField("Ciudad", validators=[Optional(), Length(max=120)],
                          default="Ciudad de Mexico")
@@ -49,25 +55,26 @@ class NotaVentaForm(FlaskForm):
     fecha_procedimiento = DateField("Fecha del procedimiento", validators=[Optional()])
     especialidad = SelectField(
         "Especialidad medica", choices=_opciones(Especialidad.TODAS),
-        validators=[Optional()],
+        validators=[Optional()], **VACIO,
     )
     cirugia = StringField("Cirugia / procedimiento",
                           validators=[Optional(), Length(max=200)])
     doctor = StringField("Doctor(a)", validators=[Optional(), Length(max=160)])
     verificado_con = SelectField(
         "Verificado con", choices=_opciones(VerificadoCon.TODOS),
-        validators=[Optional()],
+        validators=[Optional()], **VACIO,
     )
 
     # --- Cobro ---
     tipo_paciente = SelectField(
         "Tipo de paciente / cobro", choices=_opciones(TipoPaciente.TODOS),
-        validators=[Optional()],
+        validators=[Optional()], **VACIO,
     )
     # Sin Optional(): ese validador corta la cadena cuando el campo viene vacio
     # y validate_metodo_pago nunca correria, que es justo el caso a detectar.
     metodo_pago = SelectField(
-        "Metodo de pago", choices=_opciones(MetodoPago.TODOS, "-- Seleccionar metodo --"),
+        "Metodo de pago",
+        choices=_opciones(MetodoPago.TODOS, "-- Seleccionar metodo --"), **VACIO,
     )
 
     observaciones = TextAreaField("Observaciones e indicaciones",

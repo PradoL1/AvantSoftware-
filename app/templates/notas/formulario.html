@@ -38,7 +38,7 @@
       <i class="fas fa-hospital text-primary me-2"></i> 1. Destino de la entrega
     </h5>
     <div class="row g-3">
-      {{ campo(form.hospital, "col-md-6") }}
+      {{ selector(form.hospital_id, "col-md-6") }}
       {{ campo(form.ciudad, "col-md-3") }}
       {{ campo(form.fecha_requerida, "col-md-3", type="date") }}
       {{ campo(form.direccion_entrega, "col-md-6", rows=2) }}
@@ -74,6 +74,10 @@
     <h5 class="mb-3 border-bottom pb-2">
       <i class="fas fa-boxes-stacked text-primary me-2"></i> 3. Insumos solicitados
     </h5>
+    <p class="text-muted small">
+      El precio de los insumos lo captura el area administrativa al revisar la
+      nota. Aqui solo se indica que se necesita y cuanto.
+    </p>
 
     <div class="row g-2 align-items-end mb-3">
       <div class="col-md-6">
@@ -128,7 +132,8 @@
     </h5>
     <p class="text-muted small">
       El equipo tiene numero de serie, asi que se elige la pieza exacta que sale
-      del almacen. Se puede agregar escaneando su codigo de barras.
+      del almacen. Se puede agregar escaneando su codigo de barras. La tarifa de
+      renta se toma del hospital elegido.
     </p>
 
     <div class="row g-2 align-items-end mb-3">

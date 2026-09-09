@@ -6,7 +6,7 @@ from flask_login import current_user, login_required
 from app.blueprints.notas import bp
 from app.blueprints.notas.formularios import NotaVentaForm
 from app.constantes import Rol
-from app.models import EquipoMedico, Insumo, NotaVenta
+from app.models import EquipoMedico, Hospital, Insumo, NotaVenta
 from app.servicios.notas import (ErrorDeNota, actualizar_nota, crear_nota,
                                  leer_renglones)
 from app.utils.decoradores import rol_requerido
@@ -18,6 +18,20 @@ def _nota_visible_o_403(nota_id):
     if current_user.es_vendedor and nota.vendedor_id != current_user.id:
         abort(403)
     return nota
+
+
+def _hospitales():
+    return (Hospital.query.filter_by(activo=True)
+            .order_by(Hospital.nombre).all())
+
+
+def _poblar(form):
+    """Las opciones del selector se cargan en cada peticion, no al definir el
+    formulario: el catalogo cambia sin reiniciar la app."""
+    form.hospital_id.choices = [(0, "-- Elige el hospital --")] + [
+        (h.id, h.nombre) for h in _hospitales()
+    ]
+    return form
 
 
 def _catalogo():
@@ -51,7 +65,7 @@ def detalle(nota_id):
 @login_required
 @rol_requerido(Rol.VENDEDOR, Rol.REVISOR_ADMIN)
 def nueva():
-    form = NotaVentaForm()
+    form = _poblar(NotaVentaForm())
 
     if form.validate_on_submit():
         try:
@@ -76,7 +90,7 @@ def editar(nota_id):
         flash("Esta nota ya no se puede editar.", "warning")
         return redirect(url_for("notas.detalle", nota_id=nota.id))
 
-    form = NotaVentaForm(obj=nota)
+    form = _poblar(NotaVentaForm(obj=nota))
 
     if form.validate_on_submit():
         try:

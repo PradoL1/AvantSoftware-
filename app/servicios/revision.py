@@ -6,6 +6,7 @@ comprometer inventario.
 """
 
 from datetime import datetime, timezone
+from decimal import Decimal, InvalidOperation
 
 from app.constantes import EstadoNota, TipoItem
 from app.extensions import db
@@ -149,3 +150,42 @@ def cancelar(nota, usuario, motivo="Nota cancelada"):
     nota.estado = EstadoNota.CANCELADA
     db.session.commit()
     return nota
+
+
+def guardar_precios(nota, form, revisor):
+    """Captura los precios negociados de la nota.
+
+    Los insumos no tienen lista: el precio se acuerda en cada venta y solo el
+    revisor lo fija. El equipo trae la tarifa del hospital, pero tambien se
+    puede corregir aqui.
+
+    Solo se admite mientras la nota siga en revision: una vez aprobada, el
+    inventario ya esta comprometido y los documentos emitidos deben cuadrar.
+    """
+    if nota.estado != EstadoNota.PENDIENTE_REVISION:
+        raise ErrorDeRevision(
+            "Los precios solo se pueden capturar mientras la nota esta en "
+            "revision."
+        )
+
+    for detalle in nota.detalles:
+        crudo = form.get(f"precio_{detalle.id}")
+        if crudo is None or crudo.strip() == "":
+            continue
+        try:
+            precio = Decimal(crudo.strip())
+        except (InvalidOperation, ValueError):
+            raise ErrorDeRevision(
+                f"'{crudo}' no es un precio valido para {detalle.descripcion}."
+            )
+        if precio < 0:
+            raise ErrorDeRevision("Los precios no pueden ser negativos.")
+        detalle.precio_unitario = precio
+
+    db.session.commit()
+    return nota
+
+
+def renglones_sin_precio(nota):
+    """Renglones en cero. Se avisa, no se bloquea: puede haber cortesias."""
+    return [d for d in nota.detalles if not d.precio_unitario]

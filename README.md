@@ -80,14 +80,18 @@ app/
 rol con indicadores, listado y detalle de notas, bandejas de revisión y
 logística, catálogo de equipo e insumos, API `/catalogo/api/codigo`, páginas de
 error, permisos por rol (un vendedor recibe 403 en revisión), CSRF activo, y las
-reglas de negocio del sistema anterior (razón social por hospital, dos listas de
-precios, IVA, stock repartido en almacenes, transiciones de estado).
+reglas de negocio heredadas (razón social por hospital, IVA, stock repartido en
+almacenes, transiciones de estado).
+
+**Catálogo de hospitales y tarifario**: los hospitales dejan de ser texto libre.
+Cada uno guarda qué razón social le factura, y el tarifario define el precio de
+renta de cada equipo **en cada hospital**, con fecha de vigencia.
 
 **Alta y edición de notas de venta**: formulario con los datos del
 procedimiento, renglones dinámicos de insumos y equipo, alta por escaneo de
-código de barras, aviso de stock insuficiente, precio congelado al guardar según
-el hospital, y aislamiento entre vendedores (un vendedor recibe 403 en la nota
-de otro).
+código de barras, aviso de stock insuficiente, y aislamiento entre vendedores
+(un vendedor recibe 403 en la nota de otro). El equipo toma su tarifa del
+hospital elegido; los insumos entran sin precio.
 
 **Revisión**: verificación de disponibilidad renglón por renglón, aprobación con
 apartado de inventario repartido entre almacenes, rechazo con motivo obligatorio
@@ -112,6 +116,7 @@ python tests\notas.py       # alta y edición de notas, extremo a extremo
 python tests\revision.py    # aprobación, rechazo, apartado y kardex
 python tests\remisiones.py  # emisión, datos fiscales y PDF
 python tests\logistica.py   # checklist, entrega, responsiva y regreso
+python tests\precios.py     # hospitales, tarifario y captura de precios
 ```
 
 **El flujo completo del contexto §2 ya corre de punta a punta**, de
@@ -189,12 +194,14 @@ celular en el hospital, la barra ahora se colapsa por debajo de 992px.
 Todas salieron de leer `_diseno_anterior/`, no del documento de alcance, y están
 verificadas en `tests/reglas.py`.
 
-**Dos razones sociales.** Si el hospital contiene "ÁNGELES" factura *AVANT
-SOLUCIONES MEDICAS* (RFC MPB210816298); si no, *AVANT GARDE MEDIC SERVICE* (RFC
-AGM210811HD9). La regla vive en `Empresa.para_hospital()`, y decide también qué
-lista de precios aplica. En el sistema anterior estaba repetida en dos plantillas.
+**Dos razones sociales:** *AVANT SOLUCIONES MEDICAS* (RFC MPB210816298) y *AVANT
+GARDE MEDIC SERVICE* (RFC AGM210811HD9). Cuál factura a cada hospital es **un
+dato del catálogo**, no una regla sobre el texto del nombre. El sistema anterior
+lo adivinaba buscando "ANGELES" en el nombre, repetido en dos plantillas: un
+dedazo cambiaba el RFC de la remisión. `Empresa.para_hospital()` conserva esa
+regla solo como respaldo para notas anteriores al catálogo.
 
-**Dos listas de precios por insumo:** `precio_angeles` y `precio_otros`.
+**Los precios funcionan distinto segun el articulo** (ver abajo).
 
 **IVA 16%**, en `constantes.IVA`. Antes estaba escrito a mano en el JavaScript
 de la remisión.
@@ -279,3 +286,28 @@ existencia baje al salir del almacén, el cambio está localizado en
 - Los PDF (remisiones y responsivas) se guardan en
   `app/static/pdf/remisiones/` y están fuera de Git. Si falta un archivo, se
   regenera al pedirlo.
+
+## Cómo se determina cada precio
+
+Decisión del negocio, tomada en septiembre de 2026:
+
+| Artículo | De dónde sale el precio | Quién lo fija |
+|---|---|---|
+| **Equipo médico** (renta) | Tarifario: un precio por equipo **y hospital**, con fecha de vigencia | Se captura una vez en `Catálogo → Tarifas de renta` |
+| **Insumos** | No hay lista: se negocia en cada venta | Solo el revisor-administrativo, en la pantalla de revisión |
+
+El vendedor levanta la nota **sin precios de insumo**. El revisor los captura al
+revisarla, antes de aprobar. Una vez aprobada quedan congelados: el inventario
+ya está comprometido y los documentos emitidos deben cuadrar.
+
+**Consecuencia a vigilar:** el vendedor no puede decirle un monto al hospital en
+el momento de levantar la nota. Si en la práctica él negocia y necesita dejarlo
+asentado, la variante sería "el vendedor propone, el revisor confirma" — un
+campo más, no un rediseño.
+
+Para cambiar una tarifa no se edita la existente: se agrega una nueva con la
+fecha desde la que aplica. Las notas ya capturadas conservan su importe porque
+el precio se copia al renglón al guardarse.
+
+Si falta una tarifa, el equipo entra en cero y la pantalla de revisión lo
+señala. Que falte un precio nunca impide levantar la nota.

@@ -14,7 +14,13 @@ class NotaVenta(db.Model):
     vendedor_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"), nullable=False)
     vendedor = db.relationship("Usuario", foreign_keys=[vendedor_id])
 
+    hospital_id = db.Column(db.Integer, db.ForeignKey("hospitales.id"), index=True)
+    hospital_ref = db.relationship("Hospital")
+
+    # Copia del nombre al capturar. El catalogo puede corregirse o darse de
+    # baja despues; la remision impresa debe seguir diciendo lo mismo.
     hospital = db.Column(db.String(200), nullable=False)
+
     contacto_nombre = db.Column(db.String(120))
     contacto_telefono = db.Column(db.String(40))
     direccion_entrega = db.Column(db.Text, nullable=False)
@@ -97,7 +103,14 @@ class NotaVenta(db.Model):
 
     @property
     def empresa(self):
-        """Razon social que corresponde segun el hospital."""
+        """Razon social que factura esta nota.
+
+        Sale del catalogo de hospitales. La regla vieja de buscar "ANGELES" en
+        el texto queda solo como respaldo para notas capturadas antes de que
+        existiera el catalogo.
+        """
+        if self.hospital_ref is not None:
+            return self.hospital_ref.empresa
         return Empresa.para_hospital(self.hospital)
 
     @property

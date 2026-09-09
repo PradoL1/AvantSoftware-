@@ -38,6 +38,12 @@ class EquipoMedico(db.Model):
         default=lambda: datetime.now(timezone.utc),
     )
 
+    # La renta se cobra distinto en cada hospital: el precio vive en el
+    # tarifario, no aqui.
+    tarifas = db.relationship(
+        "TarifaEquipo", back_populates="equipo", cascade="all, delete-orphan"
+    )
+
     @property
     def disponible(self):
         return self.activo and self.estado == EstadoEquipo.DISPONIBLE
@@ -74,10 +80,9 @@ class Insumo(db.Model):
     unidad_medida = db.Column(db.String(30), nullable=False, default="pieza")
     codigo_barras = db.Column(db.String(64), unique=True, nullable=False, index=True)
 
-    # Dos listas de precios, como en el sistema anterior: los hospitales del
-    # Grupo Angeles tienen su propia tarifa.
-    precio_angeles = db.Column(db.Numeric(12, 2), default=0)
-    precio_otros = db.Column(db.Numeric(12, 2), default=0)
+    # Los insumos no tienen precio de lista: se negocia en cada venta y lo
+    # captura el revisor al revisar la nota. Aqui solo vive el costo, que es
+    # lo que se necesita para valuar el kardex.
     costo_unitario = db.Column(db.Numeric(12, 2), default=0)
 
     stock_minimo = db.Column(db.Integer, nullable=False, default=0)
@@ -120,12 +125,6 @@ class Insumo(db.Model):
             if e.almacen_id == almacen_id:
                 return e
         return None
-
-    def precio_para(self, hospital):
-        """La tarifa depende de si el hospital es del Grupo Angeles."""
-        if Empresa.para_hospital(hospital) == Empresa.SOLUCIONES:
-            return self.precio_angeles or 0
-        return self.precio_otros or 0
 
     @property
     def descripcion(self):

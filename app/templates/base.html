@@ -53,6 +53,10 @@
     {% endif %}
 
     <div class="seccion">Catalogo</div>
+    <a class="nav-link nav-child {{ 'active' if request.blueprint == 'catalogo' and 'hospital' in request.endpoint }}"
+       href="{{ url_for('catalogo.hospitales') }}">
+      <i class="fas fa-hospital-user"></i> Hospitales
+    </a>
     <a class="nav-link nav-child {{ 'active' if request.endpoint == 'catalogo.equipo' }}"
        href="{{ url_for('catalogo.equipo') }}">
       <i class="fas fa-stethoscope"></i> Equipo medico

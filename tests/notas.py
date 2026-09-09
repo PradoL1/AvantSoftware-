@@ -8,6 +8,8 @@ os.environ["DATABASE_URL"] = "sqlite://"
 os.environ["SECRET_KEY"] = "test"
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from datetime import date  # noqa: E402
+
 from app import create_app  # noqa: E402
 from app.constantes import EstadoNota, Rol, TipoItem  # noqa: E402
 from app.extensions import db  # noqa: E402
@@ -26,7 +28,8 @@ def check(etiqueta, obtenido, esperado):
 
 with app.app_context():
     db.create_all()
-    from app.models import Almacen, EquipoMedico, Existencia, Insumo, Usuario
+    from app.models import (Almacen, EquipoMedico, Existencia, Hospital,
+                            Insumo, TarifaEquipo, Usuario)
 
     for nombre, email, rol in [
         ("Vende", "v@a.mx", Rol.VENDEDOR),
@@ -42,13 +45,22 @@ with app.app_context():
     db.session.flush()
 
     ins = Insumo(nombre="Jeringa 20 ml", sku="JER-020", codigo_barras="IN0002",
-                 stock_minimo=10, precio_angeles=38, precio_otros=29)
+                 stock_minimo=10)
+    hosp_a = Hospital(nombre="Hospital Angeles Pedregal",
+                      empresa="soluciones", ciudad="Ciudad de Mexico")
+    hosp_b = Hospital(nombre="Bite Medica", empresa="garde")
+    db.session.add_all([hosp_a, hosp_b])
     ins.existencias.append(Existencia(almacen=central, cantidad=100))
     eq = EquipoMedico(nombre="Torre laparoscopia", codigo_barras="TOLA1",
                       numero_serie="SN-1", moi=320000, almacen=central)
     db.session.add_all([ins, eq])
     db.session.commit()
     ins_id, eq_id = ins.id, eq.id
+    hosp_a_id, hosp_b_id = hosp_a.id, hosp_b.id
+    db.session.add(TarifaEquipo(equipo_id=eq_id, hospital_id=hosp_a_id,
+                                precio_renta=8500,
+                                vigente_desde=date(2026, 1, 1)))
+    db.session.commit()
 
 
 def entrar(cliente, email):
@@ -57,7 +69,7 @@ def entrar(cliente, email):
 
 
 BASE = {
-    "hospital": "Hospital Angeles Pedregal",
+    "hospital_id": None,   # se rellena abajo, ya con el id real
     "ciudad": "Ciudad de Mexico",
     "direccion_entrega": "Quirofano 2",
     "fecha_requerida": "2026-10-15",
@@ -70,6 +82,7 @@ BASE = {
     "metodo_pago": "Efectivo",
     "observaciones": "Llevar fibra optica extra",
 }
+BASE["hospital_id"] = hosp_a_id
 
 with app.test_client() as c:
     entrar(c, "v@a.mx")
@@ -100,9 +113,11 @@ with app.test_client() as c:
 
         insumo_det = [d for d in nota.detalles if d.tipo == TipoItem.INSUMO][0]
         # Hospital Angeles -> tarifa de Angeles (38), no la de otros (29).
-        check("precio congelado del hospital", float(insumo_det.precio_unitario), 38.0)
-        check("importe del renglon", float(insumo_det.importe), 114.0)
-        check("subtotal de la nota", float(nota.subtotal), 114.0)
+        # Los insumos entran sin precio: lo captura el revisor.
+        check("insumo sin precio al capturar", float(insumo_det.precio_unitario), 0.0)
+        equipo_det = [d for d in nota.detalles if d.tipo == TipoItem.EQUIPO][0]
+        check("el equipo toma la tarifa del hospital",
+              float(equipo_det.precio_unitario), 8500.0)
         check("descripcion copiada", insumo_det.descripcion_snapshot, "Jeringa 20 ml")
         nota_id = nota.id
 
@@ -140,7 +155,7 @@ with app.test_client() as c:
     check("precarga el hospital", b"Hospital Angeles Pedregal" in r.data, True)
 
     cambio = dict(BASE)
-    cambio["hospital"] = "Bite Medica"     # ya no es Angeles: cambia la tarifa
+    cambio["hospital_id"] = hosp_b_id    # otro hospital: otra razon social
     cambio["insumo_id[]"] = str(ins_id)
     cambio["insumo_cantidad[]"] = "2"
     r = c.post(f"/notas/{nota_id}/editar", data=cambio, follow_redirects=True)
@@ -151,7 +166,6 @@ with app.test_client() as c:
         nota = db.session.get(NotaVenta, nota_id)
         check("hospital actualizado", nota.hospital, "Bite Medica")
         check("renglones reemplazados", len(nota.detalles), 1)
-        check("reprecio a tarifa de otros", float(nota.detalles[0].precio_unitario), 29.0)
         check("razon social recalculada",
               nota.datos_empresa["razon_social"], "AVANT GARDE MEDIC SERVICE")
 

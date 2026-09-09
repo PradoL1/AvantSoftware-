@@ -5,6 +5,7 @@ migraciones (basta con importar app.models).
 """
 
 from app.models.almacen import Almacen, Existencia
+from app.models.hospital import Hospital, TarifaEquipo, precio_renta
 from app.models.catalogo import EquipoMedico, Insumo
 from app.models.historial import HistorialMovimiento
 from app.models.logistica import ChecklistItem, Entrega, Remision, Responsiva
@@ -15,6 +16,9 @@ __all__ = [
     "Usuario",
     "Almacen",
     "Existencia",
+    "Hospital",
+    "TarifaEquipo",
+    "precio_renta",
     "EquipoMedico",
     "Insumo",
     "NotaVenta",

@@ -1,5 +1,7 @@
 """Comandos de terminal:  flask <comando>"""
 
+from datetime import date
+
 import click
 from flask.cli import with_appcontext
 
@@ -60,7 +62,8 @@ def sembrar_demo():
 
     NO usar en produccion: las contrasenas son publicas.
     """
-    from app.models import Almacen, EquipoMedico, Existencia, Insumo, Usuario
+    from app.models import (Almacen, EquipoMedico, Existencia, Hospital,
+                            Insumo, TarifaEquipo, Usuario)
 
     if Usuario.query.first():
         raise click.ClickException(
@@ -110,14 +113,14 @@ def sembrar_demo():
             )
         )
 
-    # (nombre, sku, unidad, codigo, minimo, precio_angeles, precio_otros, costo,
-    #  piezas en Central, piezas en Resteril)
+    # Sin precio: los insumos se negocian en cada venta y el precio lo captura
+    # el revisor. Aqui solo el costo, que es lo que valua el kardex.
     insumos = [
-        ("Set de infusion estandar", "SET-001", "pieza", "IN0001", 40, 480, 390, 210, 180, 70),
-        ("Jeringa 20 ml", "JER-020", "pieza", "IN0002", 100, 38, 29, 14, 600, 200),
-        ("Electrodo ECG adulto", "ECG-ADU", "paquete", "IN0003", 20, 260, 215, 120, 12, 4),
+        ("Set de infusion estandar", "SET-001", "pieza", "IN0001", 40, 210, 180, 70),
+        ("Jeringa 20 ml", "JER-020", "pieza", "IN0002", 100, 14, 600, 200),
+        ("Electrodo ECG adulto", "ECG-ADU", "paquete", "IN0003", 20, 120, 12, 4),
     ]
-    for (nombre, sku, unidad, codigo, minimo, p_ang, p_otros, costo,
+    for (nombre, sku, unidad, codigo, minimo, costo,
          en_central, en_resteril) in insumos:
         insumo = Insumo(
             nombre=nombre,
@@ -125,13 +128,40 @@ def sembrar_demo():
             unidad_medida=unidad,
             codigo_barras=codigo,
             stock_minimo=minimo,
-            precio_angeles=p_ang,
-            precio_otros=p_otros,
             costo_unitario=costo,
         )
         insumo.existencias.append(Existencia(almacen=central, cantidad=en_central))
         insumo.existencias.append(Existencia(almacen=resteril, cantidad=en_resteril))
         db.session.add(insumo)
+
+    # Uno de cada razon social, para poder ver que la remision cambia de RFC.
+    hospitales = [
+        ("Hospital Angeles Pedregal", Empresa.SOLUCIONES, "Ciudad de Mexico"),
+        ("Bite Medica", Empresa.GARDE, "Ciudad de Mexico"),
+    ]
+    creados = {}
+    for nombre, empresa, ciudad in hospitales:
+        h = Hospital(nombre=nombre, empresa=empresa, ciudad=ciudad)
+        db.session.add(h)
+        creados[nombre] = h
+    db.session.flush()
+
+    # La renta del mismo equipo cuesta distinto en cada hospital.
+    tarifas = [
+        ("TOLA1", "Hospital Angeles Pedregal", 8500),
+        ("TOLA1", "Bite Medica", 7200),
+        ("ENBO1", "Hospital Angeles Pedregal", 4300),
+        ("ENBO1", "Bite Medica", 3900),
+    ]
+    for codigo, hospital, precio in tarifas:
+        equipo = EquipoMedico.query.filter_by(codigo_barras=codigo).first()
+        if equipo:
+            db.session.add(TarifaEquipo(
+                equipo_id=equipo.id,
+                hospital_id=creados[hospital].id,
+                precio_renta=precio,
+                vigente_desde=date.today(),
+            ))
 
     db.session.commit()
     click.echo("Datos de demostracion cargados. Contrasena de todos: avant123")

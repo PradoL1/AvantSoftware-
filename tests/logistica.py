@@ -56,8 +56,7 @@ with app.app_context():
     db.session.add(central)
     db.session.flush()
 
-    ins = Insumo(nombre="Jeringa 20 ml", codigo_barras="IN0002", stock_minimo=5,
-                 precio_angeles=38, precio_otros=29, costo_unitario=14)
+    ins = Insumo(nombre="Jeringa 20 ml", codigo_barras="IN0002", stock_minimo=5, costo_unitario=14)
     ins.existencias.append(Existencia(almacen=central, cantidad=100))
     eq = EquipoMedico(nombre="Torre laparoscopia", codigo_barras="TOLA1",
                       numero_serie="SN-1", moi=320000, almacen=central,

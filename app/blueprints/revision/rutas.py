@@ -12,7 +12,8 @@ from app.models import NotaVenta, Remision
 from app.servicios.remisiones import (ErrorDeRemision, generar_remisiones,
                                       regenerar_pdf)
 from app.servicios.revision import (ErrorDeRevision, aprobar, cancelar,
-                                    hay_faltantes, rechazar,
+                                    guardar_precios, hay_faltantes, rechazar,
+                                    renglones_sin_precio,
                                     revisar_disponibilidad)
 from app.utils.decoradores import rol_requerido
 
@@ -40,7 +41,22 @@ def revisar(nota_id):
         nota=nota,
         filas=filas,
         faltantes=hay_faltantes(filas),
+        sin_precio=renglones_sin_precio(nota),
     )
+
+
+@bp.route("/<int:nota_id>/precios", methods=["POST"])
+@login_required
+@rol_requerido(Rol.REVISOR_ADMIN)
+def capturar_precios(nota_id):
+    nota = NotaVenta.query.get_or_404(nota_id)
+    try:
+        guardar_precios(nota, request.form, current_user)
+    except ErrorDeRevision as e:
+        flash(str(e), "danger")
+    else:
+        flash("Precios guardados.", "success")
+    return redirect(url_for("revision.revisar", nota_id=nota_id))
 
 
 @bp.route("/<int:nota_id>/aprobar", methods=["POST"])

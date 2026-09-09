@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}{{ "Editar hospital" if hospital else "Nuevo hospital" }} &middot; AVANT{% endblock %}
+
+{% macro campo(f, ancho="col-md-6") %}
+  <div class="{{ ancho }}">
+    {{ f.label(class="form-label fw-semibold small") }}
+    {{ f(class="form-control" + (" is-invalid" if f.errors else ""), **kwargs) }}
+    {% for e in f.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+  </div>
+{% endmacro %}
+
+{% block contenido %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <div class="text-uppercase small text-muted fw-semibold">Catalogo</div>
+    <h2 class="mb-0">{{ hospital.nombre if hospital else "Nuevo hospital" }}</h2>
+  </div>
+  <a class="btn btn-outline-secondary" href="{{ url_for('catalogo.hospitales') }}">Cancelar</a>
+</div>
+
+<form method="post" novalidate>
+  {{ form.hidden_tag() }}
+  <div class="card p-4 mb-3">
+    <div class="row g-3">
+      {{ campo(form.nombre, "col-md-8") }}
+      <div class="col-md-4">
+        {{ form.empresa.label(class="form-label fw-semibold small") }}
+        {{ form.empresa(class="form-select") }}
+        <div class="form-text">
+          Decide el RFC de la remision. Antes se adivinaba del nombre.
+        </div>
+      </div>
+      {{ campo(form.ciudad, "col-md-4") }}
+      {{ campo(form.direccion, "col-md-8", rows=2) }}
+      {{ campo(form.contacto_nombre, "col-md-4") }}
+      {{ campo(form.contacto_telefono, "col-md-4") }}
+      <div class="col-md-4 d-flex align-items-end">
+        <div class="form-check mb-2">
+          {{ form.activo(class="form-check-input") }}
+          {{ form.activo.label(class="form-check-label") }}
+        </div>
+      </div>
+      {{ campo(form.notas, "col-12", rows=2) }}
+    </div>
+  </div>
+
+  <div class="d-flex justify-content-end gap-2 mb-5">
+    <a class="btn btn-outline-secondary" href="{{ url_for('catalogo.hospitales') }}">Cancelar</a>
+    {{ form.submit(class="btn btn-success") }}
+  </div>
+</form>
+{% endblock %}

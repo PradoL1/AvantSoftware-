@@ -3,12 +3,17 @@
 Lectura para todos los roles; la edicion es exclusiva de revisor_admin.
 """
 
+from datetime import date
+
 from flask import flash, jsonify, redirect, render_template, request, url_for
 from flask_login import login_required
+from sqlalchemy.exc import IntegrityError
 
 from app.blueprints.catalogo import bp
+from app.blueprints.catalogo.formularios import HospitalForm, TarifaForm
 from app.constantes import Rol, TipoItem
-from app.models import EquipoMedico, Insumo
+from app.extensions import db
+from app.models import EquipoMedico, Hospital, Insumo, TarifaEquipo
 from app.utils.decoradores import rol_requerido
 
 
@@ -67,6 +72,86 @@ def buscar_por_codigo():
         )
 
     return jsonify({"encontrado": False, "error": "Codigo no registrado"}), 404
+
+
+# --- Hospitales y tarifas ---------------------------------------------------
+
+
+@bp.route("/hospitales")
+@login_required
+def hospitales():
+    lista = Hospital.query.order_by(Hospital.nombre).all()
+    return render_template("catalogo/hospitales.html", hospitales=lista)
+
+
+@bp.route("/hospitales/nuevo", methods=["GET", "POST"])
+@bp.route("/hospitales/<int:hospital_id>", methods=["GET", "POST"])
+@login_required
+@rol_requerido(Rol.REVISOR_ADMIN)
+def editar_hospital(hospital_id=None):
+    hospital = Hospital.query.get_or_404(hospital_id) if hospital_id else None
+    form = HospitalForm(obj=hospital)
+
+    if form.validate_on_submit():
+        if hospital is None:
+            hospital = Hospital()
+            db.session.add(hospital)
+        form.populate_obj(hospital)
+        hospital.nombre = hospital.nombre.strip()
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            flash(f"Ya existe un hospital llamado {hospital.nombre}.", "danger")
+        else:
+            flash(f"Hospital {hospital.nombre} guardado.", "success")
+            return redirect(url_for("catalogo.hospitales"))
+
+    return render_template("catalogo/hospital_form.html", form=form,
+                           hospital=hospital)
+
+
+@bp.route("/tarifas", methods=["GET", "POST"])
+@login_required
+@rol_requerido(Rol.REVISOR_ADMIN)
+def tarifas():
+    """Precio de renta por equipo y hospital."""
+    form = TarifaForm()
+    form.equipo_id.choices = [
+        (e.id, f"{e.descripcion} ({e.codigo_barras})")
+        for e in EquipoMedico.query.filter_by(activo=True)
+        .order_by(EquipoMedico.nombre).all()
+    ]
+    form.hospital_id.choices = [
+        (h.id, h.nombre)
+        for h in Hospital.query.filter_by(activo=True)
+        .order_by(Hospital.nombre).all()
+    ]
+    if not form.vigente_desde.data:
+        form.vigente_desde.data = date.today()
+
+    if form.validate_on_submit():
+        tarifa = TarifaEquipo(
+            equipo_id=form.equipo_id.data,
+            hospital_id=form.hospital_id.data,
+            precio_renta=form.precio_renta.data,
+            vigente_desde=form.vigente_desde.data,
+        )
+        db.session.add(tarifa)
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            flash("Ya hay una tarifa para ese equipo, hospital y fecha.",
+                  "danger")
+        else:
+            flash("Tarifa guardada.", "success")
+            return redirect(url_for("catalogo.tarifas"))
+
+    lista = (TarifaEquipo.query
+             .order_by(TarifaEquipo.hospital_id, TarifaEquipo.vigente_desde.desc())
+             .all())
+    return render_template("catalogo/tarifas.html", form=form, tarifas=lista)
 
 
 # --- Por implementar -------------------------------------------------------

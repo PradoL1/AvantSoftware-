@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Tarifas de renta &middot; AVANT{% endblock %}
+
+{% block contenido %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <div class="text-uppercase small text-muted fw-semibold">Catalogo</div>
+    <h2 class="mb-0">Tarifas de renta</h2>
+  </div>
+  <a class="btn btn-outline-secondary" href="{{ url_for('catalogo.hospitales') }}">
+    Hospitales
+  </a>
+</div>
+
+<div class="card p-4 mb-3">
+  <h5 class="mb-3 border-bottom pb-2">Nueva tarifa</h5>
+  <p class="text-muted small">
+    Para cambiar un precio no se edita la tarifa anterior: se agrega una nueva
+    con la fecha desde la que aplica. Asi las notas ya capturadas conservan su
+    importe.
+  </p>
+  <form method="post" novalidate>
+    {{ form.hidden_tag() }}
+    <div class="row g-2 align-items-end">
+      <div class="col-md-4">
+        {{ form.equipo_id.label(class="form-label fw-semibold small") }}
+        {{ form.equipo_id(class="form-select") }}
+      </div>
+      <div class="col-md-3">
+        {{ form.hospital_id.label(class="form-label fw-semibold small") }}
+        {{ form.hospital_id(class="form-select") }}
+      </div>
+      <div class="col-md-2">
+        {{ form.precio_renta.label(class="form-label fw-semibold small") }}
+        {{ form.precio_renta(class="form-control text-end") }}
+        {% for e in form.precio_renta.errors %}
+          <div class="invalid-feedback d-block">{{ e }}</div>
+        {% endfor %}
+      </div>
+      <div class="col-md-2">
+        {{ form.vigente_desde.label(class="form-label fw-semibold small") }}
+        {{ form.vigente_desde(class="form-control", type="date") }}
+      </div>
+      <div class="col-md-1">
+        {{ form.submit(class="btn btn-primary w-100") }}
+      </div>
+    </div>
+  </form>
+</div>
+
+<div class="card p-4">
+  <h5 class="mb-3 border-bottom pb-2">Tarifas capturadas</h5>
+  {% if tarifas %}
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Hospital</th>
+            <th>Equipo</th>
+            <th class="text-end">Precio de renta</th>
+            <th>Vigente desde</th>
+            <th class="text-center">Estatus</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in tarifas %}
+            <tr>
+              <td>{{ t.hospital.nombre }}</td>
+              <td>
+                {{ t.equipo.descripcion }}
+                <div class="text-muted small font-monospace">{{ t.equipo.codigo_barras }}</div>
+              </td>
+              <td class="text-end fw-semibold">${{ '{:,.2f}'.format(t.precio_renta) }}</td>
+              <td>{{ t.vigente_desde.strftime('%d/%m/%Y') }}</td>
+              <td class="text-center">
+                {% if t.vigente_en() %}
+                  <span class="badge text-bg-success">Vigente</span>
+                {% else %}
+                  <span class="badge text-bg-secondary">Historica</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="text-muted mb-0">
+      Sin tarifas. El equipo entrara en las notas con importe cero hasta que se
+      capture su precio en cada hospital.
+    </p>
+  {% endif %}
+</div>
+{% endblock %}
