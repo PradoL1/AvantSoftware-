@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% from "reportes/_renglones.html" import tabla %}
+{% block title %}Kardex &middot; AVANT{% endblock %}
+
+{% block contenido %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <div class="text-uppercase small text-muted fw-semibold">Trazabilidad</div>
+    <h2 class="mb-0">Kardex de inventario</h2>
+  </div>
+  <a class="btn btn-outline-success"
+     href="{{ url_for('reportes.kardex_csv', **request.args) }}">
+    <i class="fas fa-file-csv me-1"></i> Exportar
+  </a>
+</div>
+
+{# --- Indicadores del filtro actual --- #}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-4">
+    <div class="card p-3 kcard h-100">
+      <h6 class="text-muted">Movimientos</h6>
+      <h3 class="mb-0">{{ '{:,}'.format(totales.renglones) }}</h3>
+    </div>
+  </div>
+  <div class="col-6 col-md-4">
+    <div class="card p-3 kcard kcard-aviso h-100">
+      <h6 class="text-muted">Piezas movidas</h6>
+      <h3 class="mb-0">{{ '{:,}'.format(totales.piezas) }}</h3>
+    </div>
+  </div>
+  <div class="col-12 col-md-4">
+    <div class="card p-3 kcard kcard-exito h-100">
+      <h6 class="text-muted">Importe valuado</h6>
+      <h3 class="mb-0">${{ '{:,.2f}'.format(totales.importe) }}</h3>
+    </div>
+  </div>
+</div>
+
+{# --- Filtros --- #}
+<div class="card p-4 mb-3">
+  <form method="get" class="row g-2 align-items-end">
+    <div class="col-md-3">
+      <label class="form-label fw-semibold small" for="texto">Buscar</label>
+      <input type="text" class="form-control" id="texto" name="texto"
+             value="{{ filtros.texto }}"
+             placeholder="Nombre, SKU, codigo o serie">
+    </div>
+    <div class="col-md-2">
+      <label class="form-label fw-semibold small" for="movimiento">Movimiento</label>
+      <select class="form-select" id="movimiento" name="movimiento">
+        <option value="">Todos</option>
+        {% for m in Movimiento.TODOS %}
+          <option value="{{ m }}" {{ 'selected' if filtros.movimiento == m }}>
+            {{ Movimiento.ETIQUETAS[m] }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <label class="form-label fw-semibold small" for="item_tipo">Tipo</label>
+      <select class="form-select" id="item_tipo" name="item_tipo">
+        <option value="">Todos</option>
+        {% for t in TipoItem.TODOS %}
+          <option value="{{ t }}" {{ 'selected' if filtros.item_tipo == t }}>
+            {{ TipoItem.ETIQUETAS[t] }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <label class="form-label fw-semibold small" for="almacen_id">Almacen</label>
+      <select class="form-select" id="almacen_id" name="almacen_id">
+        <option value="">Todos</option>
+        {% for a in almacenes %}
+          <option value="{{ a.id }}"
+                  {{ 'selected' if filtros.almacen_id == a.id|string }}>
+            {{ a.nombre }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <div class="row g-1">
+        <div class="col-6">
+          <label class="form-label fw-semibold small" for="desde">Desde</label>
+          <input type="date" class="form-control" id="desde" name="desde"
+                 value="{{ filtros.desde.isoformat() if filtros.desde else '' }}"
+                 max="{{ hoy.isoformat() }}">
+        </div>
+        <div class="col-6">
+          <label class="form-label fw-semibold small" for="hasta">Hasta</label>
+          <input type="date" class="form-control" id="hasta" name="hasta"
+                 value="{{ filtros.hasta.isoformat() if filtros.hasta else '' }}"
+                 max="{{ hoy.isoformat() }}">
+        </div>
+      </div>
+    </div>
+    <div class="col-12 d-flex gap-2 mt-3">
+      <button class="btn btn-primary" type="submit">
+        <i class="fas fa-filter me-1"></i> Filtrar
+      </button>
+      <a class="btn btn-outline-secondary" href="{{ url_for('reportes.kardex') }}">
+        Limpiar
+      </a>
+    </div>
+  </form>
+</div>
+
+{# --- Movimientos --- #}
+<div class="card p-4 mb-3">
+  {{ tabla(filas) }}
+
+  {% if paginado.pages > 1 %}
+    <nav class="mt-3" aria-label="Paginas del kardex">
+      <ul class="pagination pagination-sm mb-0 justify-content-center">
+        <li class="page-item {{ 'disabled' if not paginado.has_prev }}">
+          <a class="page-link"
+             href="{{ url_for('reportes.kardex', pagina=paginado.prev_num, **filtros_url) }}">
+            Anterior
+          </a>
+        </li>
+        <li class="page-item disabled">
+          <span class="page-link">
+            Pagina {{ paginado.page }} de {{ paginado.pages }}
+          </span>
+        </li>
+        <li class="page-item {{ 'disabled' if not paginado.has_next }}">
+          <a class="page-link"
+             href="{{ url_for('reportes.kardex', pagina=paginado.next_num, **filtros_url) }}">
+            Siguiente
+          </a>
+        </li>
+      </ul>
+    </nav>
+  {% endif %}
+</div>
+
+<p class="text-muted small mb-5">
+  El kardex es solo de lectura: los movimientos no se editan ni se borran. Una
+  correccion se registra como un ajuste nuevo, para que la historia no se pueda
+  reescribir.
+</p>
+{% endblock %}

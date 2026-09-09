@@ -1,0 +1,91 @@
+{# Tabla del kardex, compartida por la consulta general y la trazabilidad.
+
+   Las columnas siguen el orden del kardex del sistema anterior: saldo inicial,
+   movimiento y saldo final, que es lo que permite reconstruir el inventario a
+   cualquier fecha.
+#}
+{% macro tabla(filas, mostrar_articulo=true) %}
+  <div class="table-responsive">
+    <table class="table table-sm table-hover align-middle mb-0" style="font-size:.85rem">
+      <thead class="table-light">
+        <tr>
+          <th style="width:5rem">Folio</th>
+          <th style="width:9rem">Fecha</th>
+          <th style="width:10rem">Movimiento</th>
+          {% if mostrar_articulo %}<th>Articulo</th>{% endif %}
+          <th class="text-end" style="width:6rem">Cant.</th>
+          <th class="text-end" style="width:6rem">Inv. ini.</th>
+          <th class="text-end" style="width:6rem">Inv. fin.</th>
+          <th style="width:8rem">Almacen</th>
+          <th class="text-end" style="width:7rem">Importe</th>
+          <th style="width:9rem">Nota</th>
+          <th style="width:9rem">Operador</th>
+          <th>Observaciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for fila in filas %}
+          {% set m = fila.mov %}
+          <tr>
+            <td class="text-muted">#{{ m.id }}</td>
+            <td class="small">{{ m.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
+            <td>
+              <span class="badge text-bg-{{ Movimiento.COLORES.get(m.movimiento, 'secondary') }}">
+                {{ Movimiento.ETIQUETAS.get(m.movimiento, m.movimiento) }}
+              </span>
+            </td>
+            {% if mostrar_articulo %}
+              <td>
+                {{ fila.descripcion }}
+                {% if fila.codigo %}
+                  <div class="text-muted small font-monospace">{{ fila.codigo }}</div>
+                {% endif %}
+              </td>
+            {% endif %}
+            <td class="text-end fw-semibold">
+              {% if m.cantidad is not none %}
+                {% if m.movimiento in Movimiento.RESTAN %}
+                  <span class="text-danger">-{{ m.cantidad }}</span>
+                {% elif m.movimiento in Movimiento.SUMAN %}
+                  <span class="text-success">+{{ m.cantidad }}</span>
+                {% else %}
+                  {{ m.cantidad }}
+                {% endif %}
+              {% else %}&mdash;{% endif %}
+            </td>
+            <td class="text-end">
+              {{ m.saldo_anterior if m.saldo_anterior is not none else '—' }}
+            </td>
+            <td class="text-end">
+              {{ m.saldo_nuevo if m.saldo_nuevo is not none else '—' }}
+            </td>
+            <td class="small">
+              {%- if m.almacen_origen %}{{ m.almacen_origen.nombre }}{% endif -%}
+              {%- if m.almacen_destino %}
+                {% if m.almacen_origen %} &rarr; {% endif %}{{ m.almacen_destino.nombre }}
+              {%- endif -%}
+              {%- if not m.almacen_origen and not m.almacen_destino %}&mdash;{% endif -%}
+            </td>
+            <td class="text-end">
+              {% if m.importe %}${{ '{:,.2f}'.format(m.importe) }}{% else %}&mdash;{% endif %}
+            </td>
+            <td class="small">
+              {% if m.nota %}
+                <a href="{{ url_for('revision.revisar', nota_id=m.nota.id) }}">{{ m.nota.folio }}</a>
+              {% else %}&mdash;{% endif %}
+            </td>
+            <td class="small">{{ m.usuario.nombre if m.usuario else '—' }}</td>
+            <td class="small text-muted">{{ m.detalle or '' }}</td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="{{ 12 if mostrar_articulo else 11 }}"
+                class="text-center text-muted py-4">
+              No hay movimientos con estos filtros.
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endmacro %}

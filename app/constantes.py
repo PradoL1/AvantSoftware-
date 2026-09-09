@@ -125,6 +125,41 @@ class Movimiento:
     A_MANTENIMIENTO = "a_mantenimiento"
     DE_MANTENIMIENTO = "de_mantenimiento"
 
+    TODOS = (
+        ALTA, APARTADO, LIBERADO, SALIDA, ENTREGADO, REGRESO_ALMACEN,
+        CONSUMIDO, AJUSTE_STOCK, A_MANTENIMIENTO, DE_MANTENIMIENTO,
+    )
+
+    ETIQUETAS = {
+        ALTA: "Alta",
+        APARTADO: "Apartado",
+        LIBERADO: "Liberado",
+        SALIDA: "Salida de almacen",
+        ENTREGADO: "Entregado",
+        REGRESO_ALMACEN: "Regreso a almacen",
+        CONSUMIDO: "Consumido",
+        AJUSTE_STOCK: "Ajuste",
+        A_MANTENIMIENTO: "A mantenimiento",
+        DE_MANTENIMIENTO: "De mantenimiento",
+    }
+
+    COLORES = {
+        ALTA: "success",
+        APARTADO: "warning",
+        LIBERADO: "info",
+        SALIDA: "primary",
+        ENTREGADO: "primary",
+        REGRESO_ALMACEN: "success",
+        CONSUMIDO: "danger",
+        AJUSTE_STOCK: "secondary",
+        A_MANTENIMIENTO: "danger",
+        DE_MANTENIMIENTO: "success",
+    }
+
+    # Movimientos que sacan piezas del almacen. Sirve para pintar el signo.
+    RESTAN = (CONSUMIDO,)
+    SUMAN = (ALTA, REGRESO_ALMACEN)
+
 
 # --- Lo que salio de revisar el sistema anterior (_diseno_anterior/) ---------
 

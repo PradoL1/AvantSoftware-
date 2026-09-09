@@ -23,6 +23,7 @@
               <th class="text-end">Apartado</th>
               <th class="text-end">Disponible</th>
               <th class="text-end">Minimo</th>
+              {% if current_user.es_revisor %}<th></th>{% endif %}
             </tr>
           </thead>
           <tbody>
@@ -39,6 +40,15 @@
               <td class="text-end">{{ insumo.stock_apartado }}</td>
               <td class="text-end fw-semibold">{{ insumo.stock_disponible }}</td>
               <td class="text-end">{{ insumo.stock_minimo }}</td>
+              {% if current_user.es_revisor %}
+                <td class="text-end">
+                  <a class="btn btn-sm btn-outline-secondary"
+                     href="{{ url_for("reportes.trazabilidad", tipo="insumo", item_id=insumo.id) }}"
+                     title="Historial de este insumo">
+                    <i class="fas fa-clock-rotate-left"></i>
+                  </a>
+                </td>
+              {% endif %}
             </tr>
           {% endfor %}
           </tbody>

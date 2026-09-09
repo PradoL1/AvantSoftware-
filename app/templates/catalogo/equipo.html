@@ -23,6 +23,7 @@
             <tr>
               <th>Codigo</th><th>Equipo</th><th>No. de serie</th>
               <th>Estado</th><th>Ubicacion</th>
+              {% if current_user.es_revisor %}<th></th>{% endif %}
             </tr>
           </thead>
           <tbody>
@@ -40,7 +41,16 @@
                   {{ equipo.estado_etiqueta }}
                 </span>
               </td>
-              <td>{{ equipo.ubicacion_actual or '-' }}</td>
+              <td>{{ equipo.ubicacion_actual or "-" }}</td>
+              {% if current_user.es_revisor %}
+                <td class="text-end">
+                  <a class="btn btn-sm btn-outline-secondary"
+                     href="{{ url_for("reportes.trazabilidad", tipo="equipo", item_id=equipo.id) }}"
+                     title="Historial de este equipo">
+                    <i class="fas fa-clock-rotate-left"></i>
+                  </a>
+                </td>
+              {% endif %}
             </tr>
           {% endfor %}
           </tbody>

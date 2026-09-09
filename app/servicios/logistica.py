@@ -126,8 +126,13 @@ def _registrar_salida(entrega):
 
     No descuenta piezas: solo deja constancia de que salieron y de que el
     equipo ya no esta fisicamente en el almacen.
+
+    Cada renglon anota de que almacen salio. Sin eso, preguntarle al kardex
+    "que salio de Central" no devolveria las salidas, que es justo lo que se
+    quiere saber.
     """
     nota = entrega.nota
+    quien = entrega.tecnico
 
     for detalle in nota.detalles:
         articulo = detalle.item
@@ -136,13 +141,34 @@ def _registrar_salida(entrega):
 
         if detalle.tipo == TipoItem.EQUIPO:
             articulo.ubicacion_actual = "En ruta"
+            registrar_movimiento(
+                TipoItem.EQUIPO, articulo.id, Movimiento.SALIDA, quien,
+                cantidad=1,
+                almacen_origen_id=articulo.almacen_id,
+                nota_venta_id=nota.id,
+                detalle=f"Salida de almacen con {quien.nombre}",
+            )
+            continue
 
-        registrar_movimiento(
-            detalle.tipo, detalle.item_id, Movimiento.SALIDA, entrega.tecnico,
-            cantidad=detalle.cantidad,
-            nota_venta_id=nota.id,
-            detalle=f"Salida de almacen con {entrega.tecnico.nombre}",
-        )
+        # Los insumos pudieron apartarse en varios almacenes: sale un renglon
+        # por cada uno, igual que al apartar y al consumir.
+        pendiente = detalle.cantidad
+        for existencia in articulo.existencias:
+            if pendiente <= 0:
+                break
+            toma = min(existencia.apartado, pendiente)
+            if toma <= 0:
+                continue
+            pendiente -= toma
+            registrar_movimiento(
+                TipoItem.INSUMO, articulo.id, Movimiento.SALIDA, quien,
+                cantidad=toma,
+                saldo_anterior=existencia.cantidad,
+                saldo_nuevo=existencia.cantidad,
+                almacen_origen_id=existencia.almacen_id,
+                nota_venta_id=nota.id,
+                detalle=f"Salida de {existencia.almacen.nombre} con {quien.nombre}",
+            )
 
     if nota.puede_pasar_a(EstadoNota.EN_LOGISTICA):
         nota.estado = EstadoNota.EN_LOGISTICA
@@ -177,7 +203,9 @@ def marcar_entregada(entrega, tecnico, recibe_nombre=None, observaciones=None):
             articulo.ubicacion_actual = nota.hospital
             registrar_movimiento(
                 TipoItem.EQUIPO, articulo.id, Movimiento.ENTREGADO, tecnico,
-                cantidad=1, nota_venta_id=nota.id,
+                cantidad=1,
+                almacen_origen_id=articulo.almacen_id,
+                nota_venta_id=nota.id,
                 detalle=f"Entregado en {nota.hospital}",
             )
 

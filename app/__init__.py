@@ -7,8 +7,8 @@ distintas.
 
 from flask import Flask, render_template
 
-from app.constantes import (EstadoEquipo, EstadoNota, Rol, TipoItem,
-                            TipoRemision)
+from app.constantes import (EstadoEquipo, EstadoNota, Movimiento, Rol,
+                            TipoItem, TipoRemision)
 from app.extensions import csrf, db, login_manager, migrate
 from config import config_por_nombre
 
@@ -51,6 +51,7 @@ def _registrar_blueprints(app):
     from app.blueprints.logistica import bp as logistica_bp
     from app.blueprints.main import bp as main_bp
     from app.blueprints.notas import bp as notas_bp
+    from app.blueprints.reportes import bp as reportes_bp
     from app.blueprints.revision import bp as revision_bp
 
     app.register_blueprint(main_bp)
@@ -59,6 +60,7 @@ def _registrar_blueprints(app):
     app.register_blueprint(revision_bp, url_prefix="/revision")
     app.register_blueprint(catalogo_bp, url_prefix="/catalogo")
     app.register_blueprint(logistica_bp, url_prefix="/logistica")
+    app.register_blueprint(reportes_bp, url_prefix="/reportes")
 
 
 def _registrar_errores(app):
@@ -89,4 +91,5 @@ def _registrar_contexto_plantillas(app):
         EstadoEquipo=EstadoEquipo,
         TipoItem=TipoItem,
         TipoRemision=TipoRemision,
+        Movimiento=Movimiento,
     )

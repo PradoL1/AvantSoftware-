@@ -118,6 +118,7 @@ python tests\remisiones.py  # emisión, datos fiscales y PDF
 python tests\logistica.py   # checklist, entrega, responsiva y regreso
 python tests\precios.py     # hospitales, tarifario y captura de precios
 python tests\catalogo.py    # altas de equipo, insumos y usuarios
+python tests\kardex.py      # consulta del kardex, filtros y exportación
 ```
 
 **El flujo completo del contexto §2 ya corre de punta a punta**, de
@@ -128,11 +129,15 @@ estilo del sistema anterior), insumos con sus existencias por almacén, y
 usuarios. Ajustar existencias a mano deja un movimiento en el kardex con su
 saldo anterior y nuevo, y nunca puede bajar de lo que ya está apartado.
 
+**Kardex y trazabilidad**: consulta de todos los movimientos con filtros por
+texto, tipo, movimiento, almacén y rango de fechas; exportación a CSV que
+respeta los filtros; e historia completa de un solo artículo desde su ficha del
+catálogo. Es solo lectura.
+
 **Falta (marcado con `TODO` en el código):**
 
 1. Impresión de etiquetas con JsBarcode (medidas ya conocidas, ver abajo).
-2. Reportes, trazabilidad y planificación de demanda.
-3. Pantalla del kardex (los movimientos ya se escriben, falta consultarlos).
+2. Reportes de ventas y planificación de demanda.
 
 ## Pendientes técnicos
 

@@ -72,9 +72,13 @@
          href="{{ url_for('auth.usuarios') }}">
         <i class="fas fa-users"></i> Usuarios
       </a>
-      <a class="nav-link nav-child {{ 'active' if request.endpoint == 'catalogo.tarifas' }}"
-         href="{{ url_for('catalogo.tarifas') }}">
+      <a class="nav-link nav-child {{ "active" if request.endpoint == "catalogo.tarifas" }}"
+         href="{{ url_for("catalogo.tarifas") }}">
         <i class="fas fa-tags"></i> Tarifas de renta
+      </a>
+      <a class="nav-link nav-child {{ "active" if request.blueprint == "reportes" }}"
+         href="{{ url_for("reportes.kardex") }}">
+        <i class="fas fa-clock-rotate-left"></i> Kardex
       </a>
     {% endif %}
 
