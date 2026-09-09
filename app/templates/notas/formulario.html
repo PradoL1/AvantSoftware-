@@ -1,0 +1,410 @@
+{% extends "base.html" %}
+{% block title %}{{ "Editar " + nota.folio if nota else "Nueva nota" }} &middot; AVANT{% endblock %}
+
+{% macro campo(f, ancho="col-md-3", extra="") %}
+  <div class="{{ ancho }}">
+    {{ f.label(class="form-label fw-semibold small") }}
+    {{ f(class="form-control" + (" is-invalid" if f.errors else ""), **kwargs) }}
+    {% for e in f.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+    {% if extra %}<div class="form-text">{{ extra }}</div>{% endif %}
+  </div>
+{% endmacro %}
+
+{% macro selector(f, ancho="col-md-3") %}
+  <div class="{{ ancho }}">
+    {{ f.label(class="form-label fw-semibold small") }}
+    {{ f(class="form-select" + (" is-invalid" if f.errors else "")) }}
+    {% for e in f.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+  </div>
+{% endmacro %}
+
+{% block contenido %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <div class="text-uppercase small text-muted fw-semibold">Notas de venta</div>
+    <h2 class="mb-0">
+      {% if nota %}Editar nota {{ nota.folio }}{% else %}Nueva nota de venta{% endif %}
+    </h2>
+  </div>
+  <a class="btn btn-outline-secondary" href="{{ url_for('notas.listar') }}">Cancelar</a>
+</div>
+
+<form method="post" novalidate id="formNota">
+  {{ form.hidden_tag() }}
+
+  {# --- 1. Destino --- #}
+  <div class="card p-4 mb-3">
+    <h5 class="mb-3 border-bottom pb-2">
+      <i class="fas fa-hospital text-primary me-2"></i> 1. Destino de la entrega
+    </h5>
+    <div class="row g-3">
+      {{ campo(form.hospital, "col-md-6") }}
+      {{ campo(form.ciudad, "col-md-3") }}
+      {{ campo(form.fecha_requerida, "col-md-3", type="date") }}
+      {{ campo(form.direccion_entrega, "col-md-6", rows=2) }}
+      {{ campo(form.contacto_nombre, "col-md-3") }}
+      {{ campo(form.contacto_telefono, "col-md-3") }}
+    </div>
+  </div>
+
+  {# --- 2. Procedimiento --- #}
+  <div class="card p-4 mb-3">
+    <h5 class="mb-3 border-bottom pb-2">
+      <i class="fas fa-user-doctor text-primary me-2"></i> 2. Datos del procedimiento
+    </h5>
+    <div class="row g-3">
+      {{ campo(form.fecha_procedimiento, "col-md-3", type="date") }}
+      {{ selector(form.especialidad, "col-md-3") }}
+      {{ campo(form.cirugia, "col-md-3") }}
+      {{ campo(form.doctor, "col-md-3") }}
+      {{ selector(form.verificado_con, "col-md-3") }}
+      {{ selector(form.tipo_paciente, "col-md-3") }}
+      <div class="col-md-3" id="cajaMetodoPago" hidden>
+        {{ form.metodo_pago.label(class="form-label fw-semibold small") }}
+        {{ form.metodo_pago(class="form-select" + (" is-invalid" if form.metodo_pago.errors else "")) }}
+        {% for e in form.metodo_pago.errors %}
+          <div class="invalid-feedback d-block">{{ e }}</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  {# --- 3. Insumos --- #}
+  <div class="card p-4 mb-3">
+    <h5 class="mb-3 border-bottom pb-2">
+      <i class="fas fa-boxes-stacked text-primary me-2"></i> 3. Insumos solicitados
+    </h5>
+
+    <div class="row g-2 align-items-end mb-3">
+      <div class="col-md-6">
+        <label class="form-label fw-semibold small" for="filtroInsumo">Buscar insumo</label>
+        <input type="text" id="filtroInsumo" class="form-control mb-2"
+               placeholder="Escribe para filtrar por nombre o SKU...">
+        <select id="selectInsumo" class="form-select" size="1">
+          {% for i in insumos %}
+            <option value="{{ i.id }}"
+                    data-nombre="{{ i.nombre }}"
+                    data-unidad="{{ i.unidad_medida }}"
+                    data-disponible="{{ i.stock_disponible }}"
+                    data-busca="{{ (i.sku or '') ~ ' ' ~ i.nombre }}">
+              [{{ i.sku or i.codigo_barras }}] {{ i.nombre }} &mdash; disp. {{ i.stock_disponible }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label fw-semibold small" for="cantidadInsumo">Cantidad</label>
+        <input type="number" id="cantidadInsumo" class="form-control text-center" min="1" value="1">
+      </div>
+      <div class="col-md-4">
+        <button type="button" class="btn btn-primary w-100" id="btnAgregarInsumo">
+          <i class="fas fa-plus me-1"></i> Agregar insumo
+        </button>
+      </div>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Insumo</th>
+            <th class="text-end" style="width:8rem">Cantidad</th>
+            <th class="text-end" style="width:8rem">Disponible</th>
+            <th class="text-center" style="width:9rem">Estatus</th>
+            <th style="width:4rem"></th>
+          </tr>
+        </thead>
+        <tbody id="tablaInsumos">
+          <tr data-vacio><td colspan="5" class="text-muted text-center py-3">Sin insumos agregados.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {# --- 4. Equipo --- #}
+  <div class="card p-4 mb-3">
+    <h5 class="mb-3 border-bottom pb-2">
+      <i class="fas fa-stethoscope text-primary me-2"></i> 4. Equipo medico solicitado
+    </h5>
+    <p class="text-muted small">
+      El equipo tiene numero de serie, asi que se elige la pieza exacta que sale
+      del almacen. Se puede agregar escaneando su codigo de barras.
+    </p>
+
+    <div class="row g-2 align-items-end mb-3">
+      <div class="col-md-6">
+        <label class="form-label fw-semibold small" for="filtroEquipo">Buscar equipo</label>
+        <input type="text" id="filtroEquipo" class="form-control mb-2"
+               placeholder="Escribe para filtrar...">
+        <select id="selectEquipo" class="form-select">
+          {% for e in equipos %}
+            <option value="{{ e.id }}"
+                    data-nombre="{{ e.descripcion }}"
+                    data-serie="{{ e.numero_serie or '' }}"
+                    data-estado="{{ e.estado_etiqueta }}"
+                    data-disponible="{{ 1 if e.disponible else 0 }}"
+                    data-busca="{{ e.descripcion ~ ' ' ~ (e.numero_serie or '') ~ ' ' ~ e.codigo_barras }}">
+              {{ e.descripcion }}{% if e.numero_serie %} &mdash; {{ e.numero_serie }}{% endif %}
+              ({{ e.estado_etiqueta }})
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button type="button" class="btn btn-primary w-100" id="btnAgregarEquipo">
+          <i class="fas fa-plus me-1"></i> Agregar
+        </button>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label fw-semibold small" for="escanerEquipo">
+          <i class="fas fa-barcode me-1"></i> Escanear codigo
+        </label>
+        <input type="text" id="escanerEquipo" class="form-control"
+               placeholder="Escanea o teclea y pulsa Enter" autocomplete="off">
+      </div>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Equipo</th>
+            <th style="width:12rem">No. de serie</th>
+            <th class="text-center" style="width:9rem">Estado</th>
+            <th style="width:4rem"></th>
+          </tr>
+        </thead>
+        <tbody id="tablaEquipos">
+          <tr data-vacio><td colspan="4" class="text-muted text-center py-3">Sin equipo agregado.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {# --- 5. Observaciones --- #}
+  <div class="card p-4 mb-3">
+    <h5 class="mb-3 border-bottom pb-2">
+      <i class="fas fa-comment-dots text-primary me-2"></i> 5. Observaciones
+    </h5>
+    {{ form.observaciones(class="form-control", rows=2,
+                          placeholder="Ej. Entregar en Quirofano 2. Llevar cable de fibra optica extra.") }}
+  </div>
+
+  <div class="d-flex justify-content-end gap-2 mb-5">
+    <a class="btn btn-outline-secondary" href="{{ url_for('notas.listar') }}">Cancelar</a>
+    {{ form.submit(class="btn btn-success btn-lg") }}
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+{# Renglones ya guardados, para reconstruir la tabla al editar. #}
+<script type="application/json" id="renglonesPrevios">
+  [
+  {%- if nota -%}
+    {%- for d in nota.detalles -%}
+      {"tipo": "{{ d.tipo }}", "id": {{ d.item_id }}, "cantidad": {{ d.cantidad }}}
+      {{- "," if not loop.last -}}
+    {%- endfor -%}
+  {%- endif -%}
+  ]
+</script>
+
+<script>
+(function () {
+  "use strict";
+
+  // --- Metodo de pago: solo para paciente particular (regla del sistema anterior)
+  const tipoPaciente = document.getElementById("tipo_paciente");
+  const cajaMetodo = document.getElementById("cajaMetodoPago");
+  const metodoPago = document.getElementById("metodo_pago");
+
+  function sincronizarMetodoPago() {
+    const esParticular = tipoPaciente.value === "Particular";
+    cajaMetodo.hidden = !esParticular;
+    if (!esParticular) metodoPago.value = "";
+  }
+  tipoPaciente.addEventListener("change", sincronizarMetodoPago);
+  sincronizarMetodoPago();
+
+  // --- Filtro de las listas ---------------------------------------------
+  function conectarFiltro(idFiltro, idSelect) {
+    const filtro = document.getElementById(idFiltro);
+    const select = document.getElementById(idSelect);
+    filtro.addEventListener("input", () => {
+      const texto = filtro.value.trim().toUpperCase();
+      let visibles = 0;
+      for (const opcion of select.options) {
+        const coincide = (opcion.dataset.busca || "").toUpperCase().includes(texto);
+        opcion.hidden = !coincide;
+        if (coincide && visibles++ === 0) select.value = opcion.value;
+      }
+      // Con filtro activo conviene ver varias opciones a la vez.
+      select.size = texto ? Math.min(8, Math.max(2, visibles)) : 1;
+    });
+  }
+  conectarFiltro("filtroInsumo", "selectInsumo");
+  conectarFiltro("filtroEquipo", "selectEquipo");
+
+  // --- Tablas de renglones ----------------------------------------------
+  const tablaInsumos = document.getElementById("tablaInsumos");
+  const tablaEquipos = document.getElementById("tablaEquipos");
+
+  function ajustarVacio(tabla) {
+    const vacio = tabla.querySelector("[data-vacio]");
+    const hayFilas = tabla.querySelector("tr[data-id]") !== null;
+    if (vacio) vacio.hidden = hayFilas;
+  }
+
+  function yaEsta(tabla, id) {
+    return tabla.querySelector(`tr[data-id="${id}"]`);
+  }
+
+  function agregarInsumo(id, nombre, unidad, disponible, cantidad) {
+    const existente = yaEsta(tablaInsumos, id);
+    if (existente) {
+      const campo = existente.querySelector("input[name='insumo_cantidad[]']");
+      campo.value = parseInt(campo.value, 10) + cantidad;
+      actualizarEstatus(existente, disponible);
+      return;
+    }
+
+    const tr = document.createElement("tr");
+    tr.dataset.id = id;
+    tr.innerHTML = `
+      <td>
+        ${nombre} <span class="text-muted small">(${unidad})</span>
+        <input type="hidden" name="insumo_id[]" value="${id}">
+      </td>
+      <td class="text-end">
+        <input type="number" name="insumo_cantidad[]" class="form-control form-control-sm text-end"
+               min="1" value="${cantidad}" style="width:6rem; display:inline-block">
+      </td>
+      <td class="text-end" data-disponible>${disponible}</td>
+      <td class="text-center" data-estatus></td>
+      <td class="text-center">
+        <button type="button" class="btn btn-sm btn-outline-danger" data-quitar aria-label="Quitar">
+          <i class="fas fa-xmark"></i>
+        </button>
+      </td>`;
+    tablaInsumos.appendChild(tr);
+    actualizarEstatus(tr, disponible);
+    ajustarVacio(tablaInsumos);
+  }
+
+  // Aviso al vendedor, no bloqueo: quien decide sobre la disponibilidad es
+  // el revisor, y el servidor la vuelve a comprobar al aprobar.
+  function actualizarEstatus(tr, disponible) {
+    const cantidad = parseInt(tr.querySelector("input[name='insumo_cantidad[]']").value, 10) || 0;
+    const celda = tr.querySelector("[data-estatus]");
+    if (cantidad <= disponible) {
+      celda.innerHTML = '<span class="badge text-bg-success">Disponible</span>';
+    } else {
+      celda.innerHTML = `<span class="badge text-bg-danger">Faltan ${cantidad - disponible}</span>`;
+    }
+  }
+
+  function agregarEquipo(id, nombre, serie, estado, disponible) {
+    if (yaEsta(tablaEquipos, id)) return;
+
+    const tr = document.createElement("tr");
+    tr.dataset.id = id;
+    const badge = disponible
+      ? '<span class="badge text-bg-success">Disponible</span>'
+      : `<span class="badge text-bg-warning">${estado}</span>`;
+    tr.innerHTML = `
+      <td>
+        ${nombre}
+        <input type="hidden" name="equipo_id[]" value="${id}">
+        <input type="hidden" name="equipo_cantidad[]" value="1">
+      </td>
+      <td class="font-monospace small">${serie || "-"}</td>
+      <td class="text-center">${badge}</td>
+      <td class="text-center">
+        <button type="button" class="btn btn-sm btn-outline-danger" data-quitar aria-label="Quitar">
+          <i class="fas fa-xmark"></i>
+        </button>
+      </td>`;
+    tablaEquipos.appendChild(tr);
+    ajustarVacio(tablaEquipos);
+  }
+
+  document.getElementById("btnAgregarInsumo").addEventListener("click", () => {
+    const select = document.getElementById("selectInsumo");
+    const opcion = select.selectedOptions[0];
+    if (!opcion) return;
+    const cantidad = parseInt(document.getElementById("cantidadInsumo").value, 10);
+    if (!cantidad || cantidad < 1) return alert("Indica una cantidad de al menos 1.");
+    agregarInsumo(opcion.value, opcion.dataset.nombre, opcion.dataset.unidad,
+                  parseInt(opcion.dataset.disponible, 10), cantidad);
+    document.getElementById("cantidadInsumo").value = 1;
+  });
+
+  document.getElementById("btnAgregarEquipo").addEventListener("click", () => {
+    const opcion = document.getElementById("selectEquipo").selectedOptions[0];
+    if (!opcion) return;
+    agregarEquipo(opcion.value, opcion.dataset.nombre, opcion.dataset.serie,
+                  opcion.dataset.estado, opcion.dataset.disponible === "1");
+  });
+
+  // Quitar renglones y recalcular al cambiar cantidades.
+  document.addEventListener("click", (ev) => {
+    const boton = ev.target.closest("[data-quitar]");
+    if (!boton) return;
+    const fila = boton.closest("tr");
+    const tabla = fila.parentElement;
+    fila.remove();
+    ajustarVacio(tabla);
+  });
+
+  tablaInsumos.addEventListener("input", (ev) => {
+    if (ev.target.name !== "insumo_cantidad[]") return;
+    const fila = ev.target.closest("tr");
+    actualizarEstatus(fila, parseInt(fila.querySelector("[data-disponible]").textContent, 10));
+  });
+
+  // --- Escaneo de codigo de barras ---------------------------------------
+  // Un lector USB/Bluetooth escribe el codigo y manda Enter, igual que aqui.
+  const escaner = document.getElementById("escanerEquipo");
+  escaner.addEventListener("keydown", async (ev) => {
+    if (ev.key !== "Enter") return;
+    ev.preventDefault();
+    const codigo = escaner.value.trim();
+    if (!codigo) return;
+
+    try {
+      const resp = await fetch(`/catalogo/api/codigo?codigo=${encodeURIComponent(codigo)}`,
+                               { headers: { Accept: "application/json" } });
+      const dato = await resp.json();
+      escaner.value = "";
+
+      if (!dato.encontrado) return alert(dato.error || "Codigo no registrado.");
+
+      if (dato.tipo === "equipo") {
+        agregarEquipo(dato.id, dato.descripcion, dato.numero_serie || "",
+                      dato.estado, dato.disponible);
+      } else {
+        agregarInsumo(dato.id, dato.descripcion, dato.unidad,
+                      dato.stock_disponible, 1);
+      }
+    } catch (e) {
+      alert("No se pudo consultar el codigo. Revisa la conexion.");
+    }
+  });
+
+  // --- Reconstruir renglones al editar -----------------------------------
+  const previos = JSON.parse(document.getElementById("renglonesPrevios").textContent);
+  for (const r of previos) {
+    if (r.tipo === "insumo") {
+      const o = document.querySelector(`#selectInsumo option[value="${r.id}"]`);
+      if (o) agregarInsumo(r.id, o.dataset.nombre, o.dataset.unidad,
+                           parseInt(o.dataset.disponible, 10), r.cantidad);
+    } else {
+      const o = document.querySelector(`#selectEquipo option[value="${r.id}"]`);
+      if (o) agregarEquipo(r.id, o.dataset.nombre, o.dataset.serie,
+                           o.dataset.estado, o.dataset.disponible === "1");
+    }
+  }
+})();
+</script>
+{% endblock %}

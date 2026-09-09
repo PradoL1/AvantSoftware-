@@ -32,13 +32,12 @@ Copy-Item .env.example .env
 #    DATABASE_URL en SQLite y cambiarlo a Supabase más adelante.
 python -c "import secrets; print(secrets.token_hex(32))"   # genera SECRET_KEY
 
-# 4. Base de datos
-flask db init          # solo la primera vez
-flask db migrate -m "esquema inicial"
+# 4. Base de datos (la migración ya está en el repo)
 flask db upgrade
 
 # 5. Usuarios y catálogo de prueba
-flask sembrar-demo     # crea 3 usuarios demo, contraseña avant123
+flask sembrar-almacenes   # los cuatro almacenes; sirve también en producción
+flask sembrar-demo        # 3 usuarios demo y catálogo, contraseña avant123
 #    o, para crear un usuario real uno por uno:
 flask crear-usuario
 
@@ -58,8 +57,8 @@ app/
   __init__.py              create_app(): fábrica de la aplicación
   extensions.py            db, migrate, login_manager (evita imports circulares)
   constantes.py            Roles, estados y transiciones válidas del flujo
-  cli.py                   Comandos: crear-usuario, sembrar-demo
-  models/                  Las 8 tablas del contexto §5
+  cli.py                   Comandos: crear-usuario, sembrar-almacenes, sembrar-demo
+  models/                  Catálogo, almacenes, notas, remisiones, responsivas, kardex
   blueprints/
     auth/                  Login y logout (funcional)
     main/                  Tablero por rol (funcional)
@@ -67,6 +66,7 @@ app/
     revision/              Revisión, aprobación y remisiones — revisor_admin
     catalogo/              Equipo, insumos y API de código de barras
     logistica/             Checklist, entrega y regreso — técnico
+  servicios/               Operaciones que tocan varias tablas (una transacción)
   utils/
     decoradores.py         @rol_requerido para el control de permisos
     folios.py              Folios consecutivos AVS-2026-0001
@@ -83,31 +83,38 @@ error, permisos por rol (un vendedor recibe 403 en revisión), CSRF activo, y la
 reglas de negocio del sistema anterior (razón social por hospital, dos listas de
 precios, IVA, stock repartido en almacenes, transiciones de estado).
 
+**Alta y edición de notas de venta**: formulario con los datos del
+procedimiento, renglones dinámicos de insumos y equipo, alta por escaneo de
+código de barras, aviso de stock insuficiente, precio congelado al guardar según
+el hospital, y aislamiento entre vendedores (un vendedor recibe 403 en la nota
+de otro).
+
 ```powershell
 python tests\pantallas.py   # renderiza cada pantalla con cada rol
 python tests\reglas.py      # reglas de negocio y cálculos
+python tests\notas.py       # alta y edición de notas, extremo a extremo
 ```
 
 **Falta (marcado con `TODO` en el código):**
 
-1. Alta y edición de notas de venta, con renglones dinámicos y escaneo.
-2. Verificación de disponibilidad + aprobación/rechazo, con apartado de stock.
-3. Generación del PDF de remisión (ReportLab).
-4. Checklist de doble verificación, entrega y regreso de equipo.
-5. Carta responsiva de custodia (modelo listo, falta el documento).
-6. Escritura del kardex en cada transición de estado.
-7. ABC de usuarios y catálogos (el formulario `UsuarioForm` ya está hecho).
-8. Impresión de etiquetas con JsBarcode (medidas ya conocidas, ver abajo).
-9. Reportes, trazabilidad y planificación de demanda.
+1. Verificación de disponibilidad + aprobación/rechazo, con apartado de stock.
+2. Generación del PDF de remisión (ReportLab).
+3. Checklist de doble verificación, entrega y regreso de equipo.
+4. Carta responsiva de custodia (modelo listo, falta el documento).
+5. Escritura del kardex en cada transición de estado.
+6. ABC de usuarios y catálogos (el formulario `UsuarioForm` ya está hecho).
+7. Impresión de etiquetas con JsBarcode (medidas ya conocidas, ver abajo).
+8. Reportes, trazabilidad y planificación de demanda.
 
 ## Pendientes técnicos
 
-- **Folios:** `utils/folios.py` usa `MAX(folio)+1`, que no es atómico. Con 11
-  usuarios el riesgo es bajo, pero la vista que crea la nota debe reintentar si
-  el `UNIQUE` del folio falla.
-- **Capa de servicios:** las transiciones de estado (apartar, entregar, cerrar)
-  tocan varias tablas a la vez. Conviene meterlas en `app/servicios/` con una
-  transacción por operación, en lugar de repartirlas entre las vistas.
+- **Folios:** `utils/folios.py` usa `MAX(folio)+1`, que no es atómico.
+  `servicios/notas.py` reintenta hasta 5 veces cuando el `UNIQUE` choca, que es
+  suficiente para 11 usuarios. Con mucha más concurrencia habría que pasar a una
+  secuencia de PostgreSQL.
+- **Capa de servicios:** `app/servicios/notas.py` ya concentra el alta y la
+  edición. Las transiciones que faltan (aprobar, apartar, entregar, cerrar)
+  deben ir ahí también, una transacción por operación.
 - **WeasyPrint:** daría PDFs más bonitos reusando el HTML de las plantillas,
   pero en Windows necesita GTK instalado aparte. Por eso `requirements.txt`
   trae ReportLab. Si se instala GTK, se puede cambiar el generador.
@@ -116,14 +123,19 @@ python tests\reglas.py      # reglas de negocio y cálculos
 
 ## Decisiones abiertas con el jefe
 
-Siguen sin resolverse las cinco de [CONTEXTO_PROYECTO.md](CONTEXTO_PROYECTO.md)
-§9. Dos afectan el código pronto:
+Siguen abiertas varias de [CONTEXTO_PROYECTO.md](CONTEXTO_PROYECTO.md)
+§9. Estas afectan el código pronto:
 
 - Qué pasa al cancelar una nota aprobada con remisión generada. El modelo ya
   tiene `Remision.cancelada` previendo que se anule, pero la regla no está
   definida.
-- Si hay uno o varios almacenes. Hoy `ubicacion_actual` es texto libre; si son
-  varios, hace falta una tabla `ubicaciones`.
+- Qué hacer con el equipo que se pasa de la fecha de renta: no hay alerta ni
+  vigencia máxima definida.
+- Quién marca un equipo en mantenimiento y dónde se registra el historial de
+  reparaciones.
+
+*(La de "uno o varios almacenes" quedó resuelta al revisar el sistema anterior:
+son cuatro, y ya están modelados.)*
 
 ## Diseño portado del sistema anterior
 
@@ -136,14 +148,13 @@ Ya portado a [app/static/css/app.css](app/static/css/app.css) y
 KPI con barra de color a la izquierda, marca de agua del logo, Bootstrap 5.3 +
 FontAwesome 6.4.
 
-**Falta que Luis exporte del sistema anterior:**
+**Falta:** `static/logo_avant.png`, que va en `app/static/img/`. Sin él la marca
+de agua simplemente no se pinta (no rompe nada).
 
-- `_sidebar.html` — el dashboard lo incluye pero no se exportó. La barra actual
-  se reconstruyó con la misma hoja de estilos y la navegación del sistema
-  nuevo; cuando aparezca el original, hay que comparar el orden y los iconos.
-- `static/logo_avant.png` — va en `app/static/img/`. Sin él, la marca de agua
-  simplemente no se pinta (no rompe nada).
-- Una pantalla de formulario, para copiar el estilo de los campos.
+**Diferencias con el `_sidebar.html` original**, pendientes de decidir: usa el
+icono `fa-feather-alt` en azul `#60a5fa`, mide 220px (no 260) y se colapsa a
+80px guardando la preferencia en `localStorage`, en vez del cajón móvil que se
+implementó aquí.
 
 **Diferencia deliberada:** el sistema anterior no era responsive (barra lateral
 fija de 260px, botón de menú oculto). Como el técnico usa logística desde el
