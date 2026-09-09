@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base.html" if current_user.is_authenticated else "base_publico.html" %}
 {% block title %}Error &middot; AVANT{% endblock %}
 {% block contenido %}
 <div class="text-center py-5">

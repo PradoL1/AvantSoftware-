@@ -1,8 +1,156 @@
-/* Estilos propios de AVANT.
-   Provisional: se reemplaza cuando se integre el CSS del sistema anterior. */
+/* Estilos de AVANT.
+ *
+ * Portado del dashboard del sistema anterior (_diseno_anterior/). Los valores
+ * (gradiente de la barra lateral, radio y sombra de las tarjetas, el azul de
+ * los enlaces activos) se conservan tal cual para que el sistema nuevo se vea
+ * como el que ya conoce el personal.
+ */
+
+:root {
+  --avant-sidebar-ancho: 260px;
+  --avant-sidebar-fondo: linear-gradient(180deg, #111827 0%, #0f172a 100%);
+  --avant-sidebar-texto: rgba(255, 255, 255, 0.8);
+  --avant-sidebar-activo: rgba(96, 165, 250, 0.18);
+  --avant-fondo: #f8f9fa;
+  --avant-radio: 12px;
+  --avant-sombra: 0 8px 20px rgba(15, 23, 42, 0.06);
+  --avant-primario: #0d6efd;
+}
 
 body {
+  background: var(--avant-fondo);
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+/* --- Estructura general --------------------------------------------------- */
+
+.dashboard-layout {
+  display: flex;
   min-height: 100vh;
+  position: relative;
+}
+
+.avant-sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--avant-sidebar-ancho);
+  background: var(--avant-sidebar-fondo);
+  color: #fff;
+  padding: 1rem 0.8rem;
+  z-index: 1000;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.avant-sidebar .brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1.25rem;
+  padding: 0 0.4rem;
+  color: #fff;
+  text-decoration: none;
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.avant-sidebar .nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  color: var(--avant-sidebar-texto);
+  text-decoration: none;
+  padding: 0.6rem 0.8rem;
+  border-radius: 8px;
+  margin-bottom: 0.2rem;
+  transition: all 0.2s ease;
+}
+
+.avant-sidebar .nav-link:hover,
+.avant-sidebar .nav-link.active {
+  background-color: var(--avant-sidebar-activo);
+  color: #fff;
+}
+
+.avant-sidebar .nav-link i {
+  width: 18px;
+  text-align: center;
+}
+
+.avant-sidebar .nav-child {
+  margin-left: 0.65rem;
+}
+
+.avant-sidebar .seccion {
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  color: rgba(255, 255, 255, 0.4);
+  padding: 0.8rem 0.8rem 0.3rem;
+}
+
+.avant-sidebar .sidebar-user {
+  margin-top: auto;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.main-wrapper {
+  flex-grow: 1;
+  position: relative;
+  background-color: var(--avant-fondo);
+  min-height: 100vh;
+  margin-left: var(--avant-sidebar-ancho);
+}
+
+/* Marca de agua tenue del logo, detras del contenido.
+   Requiere app/static/img/logo_avant.png; si falta, simplemente no se pinta. */
+.watermark-bg {
+  position: fixed;
+  top: 0;
+  left: var(--avant-sidebar-ancho);
+  right: 0;
+  bottom: 0;
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: 420px auto;
+  opacity: 0.06;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.main-content {
+  position: relative;
+  z-index: 10;
+  padding: 1.5rem 2rem;
+}
+
+/* --- Componentes ---------------------------------------------------------- */
+
+.card {
+  border-radius: var(--avant-radio);
+  box-shadow: var(--avant-sombra);
+  border: none;
+}
+
+/* Tarjeta de indicador: barra de color a la izquierda. */
+.kcard {
+  border-left: 4px solid var(--avant-primario);
+}
+.kcard-exito { border-left-color: #198754; }
+.kcard-peligro { border-left-color: #dc3545; }
+.kcard-aviso { border-left-color: #ffc107; }
+
+.collapse-trigger {
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: inherit;
 }
 
 code {
@@ -11,4 +159,62 @@ code {
 
 .table > :not(caption) > * > * {
   vertical-align: middle;
+}
+
+/* --- Movil ---------------------------------------------------------------- */
+
+/* El sistema anterior no contemplaba pantallas chicas: la barra lateral fija
+   se comia 260px de un telefono. El tecnico trabaja la logistica desde el
+   celular en el hospital, asi que aqui la barra se oculta y se abre con el
+   boton del encabezado. */
+
+.sidebar-toggle-btn {
+  display: none;
+}
+
+.sidebar-backdrop {
+  display: none;
+}
+
+@media (max-width: 991.98px) {
+  .avant-sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+  }
+
+  body.sidebar-abierta .avant-sidebar {
+    transform: translateX(0);
+  }
+
+  .main-wrapper {
+    margin-left: 0;
+  }
+
+  .watermark-bg {
+    left: 0;
+  }
+
+  .main-content {
+    padding: 1rem;
+  }
+
+  .sidebar-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: var(--avant-sombra);
+    width: 40px;
+    height: 40px;
+  }
+
+  body.sidebar-abierta .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.5);
+    z-index: 999;
+  }
 }

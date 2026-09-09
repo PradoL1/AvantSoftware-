@@ -69,7 +69,7 @@ app/
   utils/
     decoradores.py         @rol_requerido para el control de permisos
     folios.py              Folios consecutivos AVS-2026-0001
-  templates/               Jinja2 (base provisional con Bootstrap)
+  templates/               Jinja2 (base.html con sesion, base_publico.html sin ella)
   static/                  CSS, JS y PDFs generados
 ```
 
@@ -115,3 +115,27 @@ Siguen sin resolverse las cinco de [CONTEXTO_PROYECTO.md](CONTEXTO_PROYECTO.md)
   definida.
 - Si hay uno o varios almacenes. Hoy `ubicacion_actual` es texto libre; si son
   varios, hace falta una tabla `ubicaciones`.
+
+## Diseño portado del sistema anterior
+
+`_diseno_anterior/` guarda el HTML original como referencia; se borra cuando
+termine la migración visual.
+
+Ya portado a [app/static/css/app.css](app/static/css/app.css) y
+[app/templates/base.html](app/templates/base.html): barra lateral oscura de
+260px con el mismo gradiente, tarjetas con radio 12px y sombra suave, tarjetas
+KPI con barra de color a la izquierda, marca de agua del logo, Bootstrap 5.3 +
+FontAwesome 6.4.
+
+**Falta que Luis exporte del sistema anterior:**
+
+- `_sidebar.html` — el dashboard lo incluye pero no se exportó. La barra actual
+  se reconstruyó con la misma hoja de estilos y la navegación del sistema
+  nuevo; cuando aparezca el original, hay que comparar el orden y los iconos.
+- `static/logo_avant.png` — va en `app/static/img/`. Sin él, la marca de agua
+  simplemente no se pinta (no rompe nada).
+- Una pantalla de formulario, para copiar el estilo de los campos.
+
+**Diferencia deliberada:** el sistema anterior no era responsive (barra lateral
+fija de 260px, botón de menú oculto). Como el técnico usa logística desde el
+celular en el hospital, la barra ahora se colapsa por debajo de 992px.

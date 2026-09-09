@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Inventarios AVANT</title>
+    
+    <!-- Bootstrap 5 & FontAwesome -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- FullCalendar v6 (Calendario) -->
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+
+    <!-- Chart.js (Gráficos) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body { background: #f8f9fa; margin: 0; padding: 0; overflow-x: hidden; }
+        
+        /* Layout principal flexible */
+        .dashboard-layout { display: flex; min-height: 100vh; width: 100vw; position: relative; }
+        
+        /* Sidebar Fija */
+        .sidebar-container {
+            width: 260px;
+            min-width: 260px;
+            min-height: 100vh;
+            background: #111827;
+            z-index: 100;
+        }
+
+        .sidebar-container .nav-link {
+            color: rgba(255, 255, 255, 0.8);
+            border-radius: 8px;
+            padding: 0.6rem 0.8rem;
+            transition: all 0.2s ease;
+        }
+
+        .sidebar-container .nav-link:hover {
+            color: #ffffff;
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .sidebar-container .nav-link.active {
+            background-color: #0d6efd;
+            color: #fff;
+        }
+
+        /* Área del Contenido con Marca de Agua */
+        .main-wrapper {
+            flex-grow: 1;
+            position: relative;
+            background-color: #f8f9fa;
+            min-height: 100vh;
+        }
+
+        /* Capa independiente para la marca de agua tenue de AVANT */
+        .watermark-bg {
+            position: fixed;
+            top: 0;
+            left: 260px;
+            right: 0;
+            bottom: 0;
+            background-image: url("{{ url_for('static', filename='logo_avant.png') }}");
+            background-repeat: no-repeat;
+            background-position: center center;
+            background-size: 420px auto;
+            opacity: 0.06;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* El contenido real siempre por encima de la marca de agua */
+        .main-content {
+            position: relative;
+            z-index: 10;
+            padding: 1.5rem 2rem;
+        }
+
+        .card { border-radius: 12px; box-shadow: 0 8px 20px rgba(15,23,42,0.06); border: none; }
+        .kcard { border-left: 4px solid #0d6efd; }
+        .collapse-trigger { border: none; background: transparent; padding: 0; color: inherit; }
+        .dashboard-layout .avant-shared-sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 260px; background: linear-gradient(180deg, #111827 0%, #0f172a 100%); color: #fff; padding: 1rem .8rem; z-index: 1000; }
+        .dashboard-layout .avant-shared-sidebar .brand { display: flex; align-items: center; margin-bottom: 1rem; }
+        .dashboard-layout .avant-shared-sidebar .sidebar-toggle-btn { display: none; }
+        .dashboard-layout .avant-shared-sidebar .nav-link { display: flex; align-items: center; gap: .7rem; color: rgba(255,255,255,.8); text-decoration: none; padding: .6rem .8rem; border-radius: 8px; margin-bottom: .2rem; }
+        .dashboard-layout .avant-shared-sidebar .nav-link:hover, .dashboard-layout .avant-shared-sidebar .nav-link.active { background-color: rgba(96,165,250,.18); color: white; }
+        .dashboard-layout .avant-shared-sidebar .nav-link i { width: 18px; text-align: center; }
+        .dashboard-layout .avant-shared-sidebar .nav-child { margin-left: .65rem; }
+        .dashboard-layout .avant-shared-sidebar .sidebar-user { margin-top: 1rem; }
+        .dashboard-layout .main-wrapper { margin-left: 260px; }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-layout">
+        
+        <!-- BARRA LATERAL -->
+        {% include '_sidebar.html' %}
+
+        <!-- ÁREA PRINCIPAL DERECHA -->
+        <div class="main-wrapper">
+            
+            <!-- CAPA DE MARCA DE AGUA TENUE DE FONDO -->
+            <div class="watermark-bg"></div>
+
+            <!-- CONTENIDO DEL DASHBOARD -->
+            <main class="main-content">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <div class="text-uppercase small text-muted fw-semibold">Resumen ejecutivo</div>
+                        <h2 class="mb-0">📊 Panel de Control General</h2>
+                    </div>
+                    <span class="badge bg-dark rounded-pill px-3 py-2"><i class="fas fa-circle text-success me-2"></i> Sistema operativo</span>
+                </div>
+
+                <!-- FILA 1: TARJETAS KPI (Insumos, Valor, Stock, Programaciones) -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-3">
+                        <div class="card p-3 kcard h-100">
+                            <h6 class="text-muted">Insumos registrados</h6>
+                            <h3 class="mb-0">{{ stats.total if stats is defined and stats.total is defined else 0 }}</h3>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card p-3 h-100" style="border-left: 4px solid #198754;">
+                            <h6 class="text-muted">Valor estimado</h6>
+                            <h3 class="mb-0">${{ '%.0f' % stats.valor_total if stats is defined and stats.valor_total is defined else '0' }}</h3>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card p-3 h-100" style="border-left: 4px solid #dc3545;">
+                            <h6 class="text-muted">Stock crítico</h6>
+                            <h3 class="mb-0">{{ stats.stock_critico if stats is defined and stats.stock_critico is defined else 0 }}</h3>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card p-3 h-100" style="border-left: 4px solid #ffc107;">
+                            <h6 class="text-muted">Total Programaciones</h6>
+                            <h3 class="mb-0 text-warning" id="kpiTotal">0</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FILA 2: CONTENIDO DERECHA E IZQUIERDA -->
+                <div class="row g-3">
+                    <div class="col-lg-8">
+                        <!-- WIDGET 1: CALENDARIO DE PROGRAMACIONES -->
+                        <div class="card p-4 mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                                <h5 class="mb-0 text-primary"><i class="fas fa-calendar-alt me-2"></i> Agenda de Programaciones Quirúrgicas</h5>
+                                <span class="badge bg-info text-dark">Notas de Venta</span>
+                            </div>
+                            <div id="calendar" style="min-height: 450px;"></div>
+                        </div>
+
+                        <!-- WIDGET 2: TABLA DE PROGRAMACIONES PRÓXIMAS -->
+                        <div class="card p-4 mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                                <h5 class="mb-0"><i class="fas fa-list-check text-indigo-600 me-2"></i> Programaciones Registradas</h5>
+                                <a href="/notas-venta" class="btn btn-sm btn-outline-primary">+ Nueva Nota</a>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-hover table-bordered mb-0 align-middle style-sm" style="font-size: 0.85rem;">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>ID Nota</th>
+                                            <th>Fecha Cirugía</th>
+                                            <th>Procedimiento</th>
+                                            <th>Doctor</th>
+                                            <th>Hospital</th>
+                                            <th class="text-center">Estatus</th>
+                                            <th class="text-center">Acción</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tablaResumenBody">
+                                        <tr><td colspan="7" class="text-center text-muted py-3">Cargando programaciones...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- WIDGET 3: GRÁFICO DE EFECTIVIDAD -->
+                        <div class="card p-4 mb-3">
+                            <h5 class="mb-3 border-bottom pb-2"><i class="fas fa-chart-pie text-success me-2"></i> Efectividad Quirúrgica</h5>
+                            <div class="row align-items-center">
+                                <div class="col-md-6 text-center">
+                                    <div style="max-width: 220px; margin: 0 auto;">
+                                        <canvas id="chartEfectividad"></canvas>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="p-3 bg-light rounded">
+                                        <h6 class="text-muted small text-uppercase">Estatus Quirúrgicos</h6>
+                                        <div class="d-flex justify-content-between my-2">
+                                            <span><i class="fas fa-check-circle text-success me-1"></i> Completadas:</span>
+                                            <strong id="kpiCompletadas">0</strong>
+                                        </div>
+                                        <div class="d-flex justify-content-between my-2">
+                                            <span><i class="fas fa-clock text-primary me-1"></i> Pendientes:</span>
+                                            <strong id="kpiPendientes">0</strong>
+                                        </div>
+                                        <hr>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span class="fw-bold">Tasa de Éxito:</span>
+                                            <span class="badge bg-success fs-6" id="kpiEfectividad">0%</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- COLUMNA DERECHA: WIDGETS DE COMPRAS Y TÉCNICOS -->
+                    <div class="col-lg-4">
+                        <div class="card p-3 border-danger mb-3" id="urgentesCard">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h5 class="mb-0 text-danger"><i class="fas fa-exclamation-triangle me-2"></i> Compras urgentes</h5>
+                                <button class="collapse-trigger text-danger" type="button" data-bs-toggle="collapse" data-bs-target="#urgentesList" aria-expanded="true" aria-controls="urgentesList">
+                                    <i class="fas fa-chevron-up"></i>
+                                </button>
+                            </div>
+                            <div class="collapse show" id="urgentesList">
+                                <ul class="list-group list-group-flush">
+                                    {% if urgentes is defined and urgentes %}
+                                        {% for item in urgentes %}
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            <span>{{ item.nombre }}</span>
+                                            <span class="badge bg-danger rounded-pill">{{ item.stock }} pzas</span>
+                                        </li>
+                                        {% endfor %}
+                                    {% else %}
+                                        <li class="list-group-item text-muted text-center py-3">¡Todo en orden! No hay insumos críticos.</li>
+                                    {% endif %}
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="card p-3">
+                            <h5 class="mb-3"><i class="fas fa-user-nurse text-success me-2"></i> Cirugías por técnico</h5>
+                            <ul class="list-group list-group-flush">
+                                {% if tecnicos is defined and tecnicos %}
+                                    {% for tec in tecnicos %}
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        {{ tec.nombre }}
+                                        <span class="badge bg-secondary rounded-pill">{{ tec.total }} cirugías</span>
+                                    </li>
+                                    {% endfor %}
+                                {% else %}
+                                    <li class="list-group-item text-muted text-center py-3">Sin registros de técnicos este mes.</li>
+                                {% endif %}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- MODAL VENTANA PARA MODIFICAR EL ESTATUS O REGISTRAR INCIDENCIA -->
+    <div class="modal fade" id="modalEstatusCirugia" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header bg-dark text-white">
+            <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Actualizar Estatus de Cirugía</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="formActualizarEstatus">
+              <input type="hidden" id="modalNotaId" name="nota_id">
+              
+              <div class="mb-3">
+                <label class="form-label fw-bold">Estatus Quirúrgico</label>
+                <select class="form-select" id="modalEstatusSelect" onchange="toggleIncidenciaText(this.value)" required>
+                  <option value="Completada">✅ Completada</option>
+                  <option value="Pendiente">⏳ Pendiente / En Proceso</option>
+                  <option value="Incidencia">⚠️ Con Incidencia / Problema</option>
+                  <option value="Cancelada">❌ Cancelada</option>
+                </select>
+              </div>
+
+              <div class="mb-3" id="bloqueIncidencia" style="display: none;">
+                <label class="form-label fw-bold text-danger">Detalle de la Incidencia / Motivo de Cancelación</label>
+                <textarea class="form-control" id="modalObservaciones" rows="3" placeholder="Describe la falla de equipo, falta de insumo, retraso u observación..."></textarea>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            <button type="button" class="btn btn-primary" onclick="guardarEstatusCirugia()">Guardar Cambios</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCRIPTS JAVASCRIPT -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let chartPie = null;
+        let calendar = null;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const calendarEl = document.getElementById('calendar');
+            calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                locale: 'es',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,listWeek'
+                },
+                buttonText: { today: 'Hoy', month: 'Mes', list: 'Lista' },
+                events: function(fetchInfo, successCallback, failureCallback) {
+                    fetch('/api/dashboard/eventos-efectividad')
+                        .then(response => response.json())
+                        .then(data => {
+                            if(document.getElementById('kpiTotal')) document.getElementById('kpiTotal').innerText = data.total_programaciones || 0;
+                            if(document.getElementById('kpiCompletadas')) document.getElementById('kpiCompletadas').innerText = data.efectividad.Completadas || 0;
+                            if(document.getElementById('kpiPendientes')) document.getElementById('kpiPendientes').innerText = data.efectividad.Pendientes || 0;
+                            if(document.getElementById('kpiEfectividad')) document.getElementById('kpiEfectividad').innerText = (data.porcentaje_exito || 0) + '%';
+
+                            renderizarGraficoEfectividad(data.efectividad);
+                            renderizarTablaResumen(data.eventos);
+
+                            const eventosFormateados = data.eventos.map(e => ({
+                                id: e.id,
+                                title: e.title,
+                                start: e.start,
+                                url: e.url,
+                                backgroundColor: e.extendedProps.estatus === 'Completada' ? '#198754' :
+                                                 e.extendedProps.estatus === 'Incidencia' ? '#dc3545' :
+                                                 e.extendedProps.estatus === 'Cancelada' ? '#212529' : '#0d6efd',
+                                borderColor: 'transparent'
+                            }));
+
+                            successCallback(eventosFormateados);
+                        })
+                        .catch(error => {
+                            console.error('Error al obtener agenda:', error);
+                            failureCallback(error);
+                        });
+                },
+                eventClick: function(info) {
+                    info.jsEvent.preventDefault();
+                    if (info.event.url) {
+                        window.open(info.event.url, "_blank");
+                    }
+                }
+            });
+
+            calendar.render();
+        });
+
+        function renderizarTablaResumen(eventos) {
+            const tbody = document.getElementById('tablaResumenBody');
+            if(!tbody) return;
+            tbody.innerHTML = '';
+
+            if (!eventos || eventos.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">No hay cirugías programadas registradas.</td></tr>';
+                return;
+            }
+
+            eventos.forEach(item => {
+                const tr = document.createElement('tr');
+                const estatus = item.extendedProps.estatus || 'Pendiente';
+
+                const badgeEstatus = estatus === 'Completada' ? '<span class="badge bg-success">Completada</span>' :
+                                    estatus === 'Incidencia' ? '<span class="badge bg-danger">Incidencia</span>' :
+                                    estatus === 'Cancelada' ? '<span class="badge bg-dark">Cancelada</span>' :
+                                    '<span class="badge bg-primary">Pendiente</span>';
+
+                tr.innerHTML = `
+                    <td class="fw-bold text-primary">${item.id}</td>
+                    <td>${item.start}</td>
+                    <td class="fw-medium">${item.title.split(' - ')[0]}</td>
+                    <td>${item.title.split(' - ')[1] || ''}</td>
+                    <td class="text-muted">${item.extendedProps.hospital || ''}</td>
+                    <td class="text-center">${badgeEstatus}</td>
+                    <td class="text-center">
+                        <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2 text-xs" 
+                                onclick="abrirModalEstatus('${item.id}', '${estatus}')">
+                            <i class="fas fa-edit me-1"></i> Estado
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderizarGraficoEfectividad(datos) {
+            const canvas = document.getElementById('chartEfectividad');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            if (chartPie) chartPie.destroy();
+
+            chartPie = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: ['Completadas', 'Pendientes', 'Incidencias', 'Canceladas'],
+                    datasets: [{
+                        data: [
+                            datos.Completadas || 0,
+                            datos.Pendientes || 0,
+                            datos.Incidencia || 0,
+                            datos.Canceladas || 0
+                        ],
+                        backgroundColor: ['#198754', '#0d6efd', '#dc3545', '#212529'],
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            });
+        }
+
+        function abrirModalEstatus(notaId, estatusActual = 'Pendiente') {
+            document.getElementById('modalNotaId').value = notaId;
+            document.getElementById('modalEstatusSelect').value = estatusActual;
+            document.getElementById('modalObservaciones').value = '';
+            
+            toggleIncidenciaText(estatusActual);
+            
+            const modal = new bootstrap.Modal(document.getElementById('modalEstatusCirugia'));
+            modal.show();
+        }
+
+        function toggleIncidenciaText(val) {
+            const bloque = document.getElementById('bloqueIncidencia');
+            if (val === 'Incidencia' || val === 'Cancelada') {
+                bloque.style.display = 'block';
+            } else {
+                bloque.style.display = 'none';
+            }
+        }
+
+        function guardarEstatusCirugia() {
+            const notaId = document.getElementById('modalNotaId').value;
+            const estatus = document.getElementById('modalEstatusSelect').value;
+            const observaciones = document.getElementById('modalObservaciones').value;
+
+            fetch('/api/programacion/actualizar-estatus', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    nota_id: notaId,
+                    estatus: estatus,
+                    observaciones: observaciones
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    const modalEl = document.getElementById('modalEstatusCirugia');
+                    const modal = bootstrap.Modal.getInstance(modalEl);
+                    modal.hide();
+
+                    if (calendar) {
+                        calendar.refetchEvents();
+                    } else {
+                        location.reload();
+                    }
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(err => console.error('Error:', err));
+        }
+    </script>
+</body>
+</html>

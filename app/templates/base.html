@@ -1,82 +1,115 @@
-{# Plantilla base provisional.
+{# Plantilla base para las pantallas con sesion iniciada.
 
-   Trae Bootstrap 5 por CDN solo para que la app sea usable desde el primer dia.
-   Cuando se exporten templates/ y static/ del sistema anterior (contexto,
-   seccion 1), se sustituye el <head> y la barra de navegacion por el diseno
-   real; los bloques (title, contenido, scripts) no deberian cambiar.
+   Portada del dashboard del sistema anterior: barra lateral oscura fija de
+   260px, marca de agua del logo y tarjetas con sombra suave. Los estilos viven
+   en static/css/app.css, no aqui.
+
+   El _sidebar.html original no se exporto, asi que la barra de abajo se
+   reconstruyo con la misma hoja de estilos pero con la navegacion del sistema
+   nuevo (notas, revision, logistica, catalogo) y filtrada por rol.
+
+   Las pantallas sin sesion (login) usan base_publico.html.
 #}
 <!doctype html>
 <html lang="es">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}AVANT{% endblock %}</title>
-  <link rel="stylesheet"
-        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  {% include "_head.html" %}
 </head>
-<body class="bg-light">
+<body>
 
-{% if current_user.is_authenticated %}
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-  <div class="container-fluid">
-    <a class="navbar-brand" href="{{ url_for('main.inicio') }}">AVANT</a>
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
-            data-bs-target="#menu" aria-controls="menu" aria-expanded="false"
-            aria-label="Menu">
-      <span class="navbar-toggler-icon"></span>
-    </button>
+<div class="dashboard-layout">
 
-    <div class="collapse navbar-collapse" id="menu">
-      <ul class="navbar-nav me-auto">
-        {% if current_user.es_vendedor or current_user.es_revisor %}
-          <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('notas.listar') }}">Notas de venta</a>
-          </li>
-        {% endif %}
-        {% if current_user.es_revisor %}
-          <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('revision.bandeja') }}">Revision</a>
-          </li>
-        {% endif %}
-        {% if current_user.es_tecnico or current_user.es_revisor %}
-          <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('logistica.bandeja') }}">Logistica</a>
-          </li>
-        {% endif %}
-        <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle" href="#" role="button"
-             data-bs-toggle="dropdown" aria-expanded="false">Catalogo</a>
-          <ul class="dropdown-menu">
-            <li><a class="dropdown-item" href="{{ url_for('catalogo.equipo') }}">Equipo medico</a></li>
-            <li><a class="dropdown-item" href="{{ url_for('catalogo.insumos') }}">Insumos</a></li>
-          </ul>
-        </li>
-      </ul>
+  {# --- Barra lateral --- #}
+  <nav class="avant-sidebar" id="sidebar">
+    <a class="brand" href="{{ url_for('main.inicio') }}">
+      <i class="fas fa-hospital"></i> AVANT
+    </a>
 
-      <span class="navbar-text me-3">
-        {{ current_user.nombre }} &middot; {{ current_user.rol_etiqueta }}
-      </span>
-      <a class="btn btn-outline-light btn-sm" href="{{ url_for('auth.logout') }}">Salir</a>
-    </div>
-  </div>
-</nav>
-{% endif %}
+    <a class="nav-link {{ 'active' if request.endpoint == 'main.inicio' }}"
+       href="{{ url_for('main.inicio') }}">
+      <i class="fas fa-gauge-high"></i> Panel
+    </a>
 
-<main class="container py-4">
-  {% with mensajes = get_flashed_messages(with_categories=true) %}
-    {% for categoria, mensaje in mensajes %}
-      <div class="alert alert-{{ categoria }} alert-dismissible fade show" role="alert">
-        {{ mensaje }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+    {% if current_user.es_vendedor or current_user.es_revisor %}
+      <a class="nav-link {{ 'active' if request.blueprint == 'notas' }}"
+         href="{{ url_for('notas.listar') }}">
+        <i class="fas fa-file-invoice"></i> Notas de venta
+      </a>
+    {% endif %}
+
+    {% if current_user.es_revisor %}
+      <a class="nav-link {{ 'active' if request.blueprint == 'revision' }}"
+         href="{{ url_for('revision.bandeja') }}">
+        <i class="fas fa-clipboard-check"></i> Revision
+      </a>
+    {% endif %}
+
+    {% if current_user.es_tecnico or current_user.es_revisor %}
+      <a class="nav-link {{ 'active' if request.blueprint == 'logistica' }}"
+         href="{{ url_for('logistica.bandeja') }}">
+        <i class="fas fa-truck-medical"></i> Logistica
+      </a>
+    {% endif %}
+
+    <div class="seccion">Catalogo</div>
+    <a class="nav-link nav-child {{ 'active' if request.endpoint == 'catalogo.equipo' }}"
+       href="{{ url_for('catalogo.equipo') }}">
+      <i class="fas fa-stethoscope"></i> Equipo medico
+    </a>
+    <a class="nav-link nav-child {{ 'active' if request.endpoint == 'catalogo.insumos' }}"
+       href="{{ url_for('catalogo.insumos') }}">
+      <i class="fas fa-boxes-stacked"></i> Insumos
+    </a>
+
+    <div class="sidebar-user">
+      <div class="px-2 mb-2 small">
+        <div class="fw-semibold text-white">{{ current_user.nombre }}</div>
+        <div class="text-white-50">{{ current_user.rol_etiqueta }}</div>
       </div>
-    {% endfor %}
-  {% endwith %}
+      <a class="nav-link" href="{{ url_for('auth.logout') }}">
+        <i class="fas fa-right-from-bracket"></i> Salir
+      </a>
+    </div>
+  </nav>
 
-  {% block contenido %}{% endblock %}
-</main>
+  <div class="sidebar-backdrop" data-cierra-sidebar></div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  {# --- Area principal --- #}
+  <div class="main-wrapper">
+    <div class="watermark-bg"
+         style="background-image: url('{{ url_for('static', filename='img/logo_avant.png') }}');"></div>
+
+    <main class="main-content">
+      <button class="sidebar-toggle-btn mb-3" type="button" data-abre-sidebar
+              aria-label="Abrir menu" aria-controls="sidebar">
+        <i class="fas fa-bars"></i>
+      </button>
+
+      {% with mensajes = get_flashed_messages(with_categories=true) %}
+        {% for categoria, mensaje in mensajes %}
+          <div class="alert alert-{{ categoria }} alert-dismissible fade show" role="alert">
+            {{ mensaje }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+          </div>
+        {% endfor %}
+      {% endwith %}
+
+      {% block contenido %}{% endblock %}
+    </main>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  // Barra lateral en movil: se abre con el boton y se cierra al tocar el fondo.
+  document.querySelectorAll("[data-abre-sidebar]").forEach((boton) => {
+    boton.addEventListener("click", () => document.body.classList.add("sidebar-abierta"));
+  });
+  document.querySelectorAll("[data-cierra-sidebar]").forEach((fondo) => {
+    fondo.addEventListener("click", () => document.body.classList.remove("sidebar-abierta"));
+  });
+</script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

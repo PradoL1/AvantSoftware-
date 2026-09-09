@@ -1,73 +1,90 @@
 {% extends "base.html" %}
-{% block title %}Inicio &middot; AVANT{% endblock %}
-
-{% macro tabla_notas(notas, ruta) %}
-  {% if notas %}
-    <div class="table-responsive">
-      <table class="table table-sm table-hover align-middle mb-0">
-        <thead>
-          <tr>
-            <th>Folio</th><th>Hospital</th><th>Requerida</th><th>Estado</th>
-          </tr>
-        </thead>
-        <tbody>
-        {% for nota in notas %}
-          <tr>
-            <td><a href="{{ url_for(ruta, nota_id=nota.id) }}">{{ nota.folio }}</a></td>
-            <td>{{ nota.hospital }}</td>
-            <td>{{ nota.fecha_requerida.strftime('%d/%m/%Y') }}</td>
-            <td><span class="badge text-bg-{{ nota.estado_color }}">{{ nota.estado_etiqueta }}</span></td>
-          </tr>
-        {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  {% else %}
-    <p class="text-muted mb-0">Nada por aqui todavia.</p>
-  {% endif %}
-{% endmacro %}
+{% from "_macros.html" import tabla_notas %}
+{% block title %}Panel &middot; AVANT{% endblock %}
 
 {% block contenido %}
-<h1 class="h3 mb-4">Hola, {{ current_user.nombre }}</h1>
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <div class="text-uppercase small text-muted fw-semibold">Resumen</div>
+    <h2 class="mb-0">Panel de {{ current_user.rol_etiqueta }}</h2>
+  </div>
+  {% if current_user.es_vendedor %}
+    <a class="btn btn-primary" href="{{ url_for('notas.nueva') }}">
+      <i class="fas fa-plus me-1"></i> Nueva nota
+    </a>
+  {% endif %}
+</div>
 
-{% if current_user.es_vendedor %}
-  <div class="card mb-4">
-    <div class="card-header d-flex justify-content-between align-items-center">
-      <span>Mis notas recientes</span>
-      <a class="btn btn-sm btn-primary" href="{{ url_for('notas.nueva') }}">Nueva nota</a>
+{# --- Tarjetas de indicadores --- #}
+<div class="row g-3 mb-4">
+  {% for etiqueta, valor, clase in kpis | default([]) %}
+    <div class="col-6 col-md-3">
+      <div class="card p-3 kcard {{ clase }} h-100">
+        <h6 class="text-muted">{{ etiqueta }}</h6>
+        <h3 class="mb-0">{{ valor }}</h3>
+      </div>
     </div>
-    <div class="card-body">{{ tabla_notas(mis_notas, 'notas.detalle') }}</div>
+  {% endfor %}
+</div>
+
+{# --- Contenido por rol --- #}
+{% if current_user.es_vendedor %}
+  <div class="card p-4">
+    <h5 class="mb-3 border-bottom pb-2">
+      <i class="fas fa-file-invoice text-primary me-2"></i> Mis notas recientes
+    </h5>
+    {{ tabla_notas(mis_notas, 'notas.detalle', 'Todavia no has creado ninguna nota.') }}
   </div>
 
 {% elif current_user.es_revisor %}
-  <div class="card mb-4">
-    <div class="card-header">Pendientes de revision</div>
-    <div class="card-body">{{ tabla_notas(pendientes, 'revision.revisar') }}</div>
-  </div>
+  <div class="row g-3">
+    <div class="col-lg-8">
+      <div class="card p-4 h-100">
+        <h5 class="mb-3 border-bottom pb-2">
+          <i class="fas fa-clipboard-check text-primary me-2"></i> Pendientes de revision
+        </h5>
+        {{ tabla_notas(pendientes, 'revision.revisar', 'No hay notas pendientes. Todo al dia.') }}
+      </div>
+    </div>
 
-  <div class="card">
-    <div class="card-header">Insumos bajo el minimo</div>
-    <div class="card-body">
-      {% if insumos_bajo_minimo %}
-        <ul class="mb-0">
-          {% for insumo in insumos_bajo_minimo %}
-            <li>
-              {{ insumo.nombre }} &mdash;
-              disponible {{ insumo.stock_disponible }} {{ insumo.unidad_medida }}
-              (minimo {{ insumo.stock_minimo }})
-            </li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <p class="text-muted mb-0">Todo el inventario esta por encima del minimo.</p>
-      {% endif %}
+    <div class="col-lg-4">
+      <div class="card p-3 border-danger h-100">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h5 class="mb-0 text-danger">
+            <i class="fas fa-exclamation-triangle me-2"></i> Insumos bajo minimo
+          </h5>
+          <button class="collapse-trigger text-danger" type="button"
+                  data-bs-toggle="collapse" data-bs-target="#listaMinimos"
+                  aria-expanded="true" aria-controls="listaMinimos">
+            <i class="fas fa-chevron-up"></i>
+          </button>
+        </div>
+        <div class="collapse show" id="listaMinimos">
+          <ul class="list-group list-group-flush">
+            {% for insumo in insumos_bajo_minimo %}
+              <li class="list-group-item d-flex justify-content-between align-items-center">
+                <span>{{ insumo.nombre }}</span>
+                <span class="badge bg-danger rounded-pill">
+                  {{ insumo.stock_disponible }} {{ insumo.unidad_medida }}
+                </span>
+              </li>
+            {% else %}
+              <li class="list-group-item text-muted text-center py-3">
+                Todo el inventario esta por encima del minimo.
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
     </div>
   </div>
 
 {% elif current_user.es_tecnico %}
-  <div class="card">
-    <div class="card-header">Entregas asignadas</div>
-    <div class="card-body">{{ tabla_notas(en_logistica, 'logistica.detalle') }}</div>
+  <div class="card p-4">
+    <h5 class="mb-3 border-bottom pb-2">
+      <i class="fas fa-truck-medical text-primary me-2"></i> Entregas asignadas
+    </h5>
+    {{ tabla_notas(en_logistica, 'logistica.detalle', 'No hay entregas asignadas.') }}
   </div>
 {% endif %}
 {% endblock %}
